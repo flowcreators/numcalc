@@ -226,7 +226,7 @@ export default function Home() {
             </p>
             <p>
               Each resulting number (1-9) is believed to carry unique vibrations and meanings, offering insights into personality traits, life paths, and potential opportunities.
-              While it's important to note this is for entertainment purposes, it can be a fascinating tool for self-reflection and personal exploration.
+              While it&apos;s important to note this is for entertainment purposes, it can be a fascinating tool for self-reflection and personal exploration.
             </p>
           </div>
         </div>
