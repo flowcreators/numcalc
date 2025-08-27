@@ -1,103 +1,240 @@
-import Image from "next/image";
+"use client";
+
+import { useState } from "react";
 
 export default function Home() {
-  return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <main className="flex flex-col gap-[32px] row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
-        />
-        <ol className="font-mono list-inside list-decimal text-sm/6 text-center sm:text-left">
-          <li className="mb-2 tracking-[-.01em]">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] font-mono font-semibold px-1 py-0.5 rounded">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li className="tracking-[-.01em]">
-            Save and see your changes instantly.
-          </li>
-        </ol>
+  const [input, setInput] = useState("");
+  const [result, setResult] = useState<number | null>(null);
+  const [calculations, setCalculations] = useState<string[]>([]);
+  const [calculatePerWord, setCalculatePerWord] = useState(true);
+  const [showDetails, setShowDetails] = useState(true);
+  const [useRecursiveReduction, setUseRecursiveReduction] = useState(true);
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:w-auto"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent font-medium text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 w-full sm:w-auto md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+  const reduceToSingleDigit = (num: number): number => {
+    // Check for master numbers first
+    if (num === 11 || num === 22 || num === 33) return num;
+    if (num < 10) return num;
+    const reduced = String(num).split('').reduce((acc, digit) => acc + parseInt(digit), 0);
+    // Check if the reduced number is a master number
+    if (reduced === 11 || reduced === 22 || reduced === 33) return reduced;
+    return reduced > 9 ? reduceToSingleDigit(reduced) : reduced;
+  };
+
+  const calculatePythagoreanNumber = (text: string) => {
+    const letterValues: { [key: string]: number } = {};
+    'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((letter, index) => {
+      letterValues[letter] = (index % 9) + 1;
+    });
+
+    const newCalculations: string[] = [];
+    let finalResult: number;
+
+    if (calculatePerWord) {
+      const words = text.split(/\s+/).filter(word => word.length > 0);
+      const wordResults = words.map(word => {
+        const wordSum = word
+          .toUpperCase()
+          .split('')
+          .filter(char => /[A-Z]/.test(char))
+          .reduce((acc, char) => {
+            const value = letterValues[char] || 0;
+            if (showDetails) {
+              newCalculations.push(`${char} = ${value}`);
+            }
+            return acc + value;
+          }, 0);
+        
+        if (showDetails) {
+          newCalculations.push(`${word} = ${wordSum}`);
+          if (useRecursiveReduction && wordSum > 9) {
+            newCalculations.push(`Reduced: ${wordSum} → ${reduceToSingleDigit(wordSum)}`);
+          }
+        }
+        return useRecursiveReduction ? reduceToSingleDigit(wordSum) : wordSum;
+      });
+
+      finalResult = useRecursiveReduction 
+        ? reduceToSingleDigit(wordResults.reduce((acc, num) => acc + num, 0))
+        : wordResults.reduce((acc, num) => acc + num, 0);
+    } else {
+      const sum = text
+        .toUpperCase()
+        .split('')
+        .filter(char => /[A-Z]/.test(char))
+        .reduce((acc, char) => {
+          const value = letterValues[char] || 0;
+          if (showDetails) {
+            newCalculations.push(`${char} = ${value}`);
+          }
+          return acc + value;
+        }, 0);
+
+      finalResult = useRecursiveReduction ? reduceToSingleDigit(sum) : sum;
+      
+      if (showDetails && useRecursiveReduction && sum > 9) {
+        newCalculations.push(`Total: ${sum}`);
+        newCalculations.push(`Reduced: ${sum} → ${finalResult}`);
+      }
+    }
+
+    setCalculations(newCalculations);
+    setResult(finalResult);
+  };
+
+  return (
+    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
+      <main className="max-w-4xl mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold text-center mb-8 text-purple-600 dark:text-purple-400">
+          Pythagorean Numerology Calculator
+        </h1>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-xl mx-auto">
+          <div className="space-y-6">
+            <div>
+              <label htmlFor="name" className="block text-sm font-medium mb-2">
+                Word, Name, or Words/Names List
+              </label>
+              <input
+                type="text"
+                id="name"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                className="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
+                placeholder="Type a name or word..."
+              />
+            </div>
+
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Calculation</span>
+                <div className="flex items-center space-x-2">
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!calculatePerWord ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={!calculatePerWord}
+                      onChange={() => setCalculatePerWord(false)}
+                    />
+                    For All Letters
+                  </label>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${calculatePerWord ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={calculatePerWord}
+                      onChange={() => setCalculatePerWord(true)}
+                    />
+                    For Each Word
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Display</span>
+                <div className="flex items-center space-x-2">
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!showDetails ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={!showDetails}
+                      onChange={() => setShowDetails(false)}
+                    />
+                    Result Only
+                  </label>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${showDetails ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                    <input
+                      type="radio"
+                      className="hidden"
+                      checked={showDetails}
+                      onChange={() => setShowDetails(true)}
+                    />
+                    Calculation Details
+                  </label>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  id="recursive"
+                  checked={useRecursiveReduction}
+                  onChange={(e) => setUseRecursiveReduction(e.target.checked)}
+                  className="w-4 h-4 text-purple-600 rounded border-gray-300 focus:ring-purple-500"
+                />
+                <label htmlFor="recursive" className="text-sm font-medium">
+                  Use recursive reduction to get only one digit
+                </label>
+              </div>
+            </div>
+
+            <button
+              onClick={() => calculatePythagoreanNumber(input)}
+              className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+            >
+              Calculate
+            </button>
+
+            {result !== null && (
+              <div className="mt-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {showDetails && calculations.length > 0 && (
+                    <div className="p-4 bg-gray-50 dark:bg-gray-700 rounded-lg text-left order-1 md:order-none">
+                      <h3 className="font-medium mb-2 text-sm">Calculation Details</h3>
+                      {calculations.map((calc, index) => (
+                        <div key={index} className="text-sm text-gray-600 dark:text-gray-300">
+                          {calc}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <div className="text-center">
+                    <h2 className="text-xl font-semibold mb-2">Your Number</h2>
+                    <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">
+                      {result}
+                    </div>
+
+                    <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                      <h3 className="font-medium mb-2">Number Meaning</h3>
+                  <p className="italic">
+                    {result === 1 && "Unity and beginnings - representing leadership and independence"}
+                    {result === 2 && "Harmony and balance - symbolizing cooperation and diplomacy"}
+                    {result === 3 && "Creativity and expression - bringing joy and artistic abilities"}
+                    {result === 4 && "Stability and foundation - signifying hard work and reliability"}
+                    {result === 5 && "Freedom and adventure - representing change and versatility"}
+                    {result === 6 && "Love and harmony - symbolizing responsibility and care"}
+                    {result === 7 && "Wisdom and spirituality - representing analysis and understanding"}
+                    {result === 8 && "Power and abundance - symbolizing material success"}
+                    {result === 9 && "Completion and humanitarianism - representing compassion"}
+                    {result === 11 && "Master number - Intuition and spiritual insight"}
+                    {result === 22 && "Master number - Master builder and manifestation"}
+                    {result === 33 && "Master number - Master teacher and spiritual guidance"}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+            )}
+          </div>
+        </div>
+        
+        <div className="mt-8 max-w-2xl mx-auto">
+          <h2 className="text-xl font-bold mb-4 text-center text-purple-600 dark:text-purple-400">About Pythagorean Numerology</h2>
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-sm text-gray-600 dark:text-gray-300">
+            <p className="mb-4">
+              Pythagorean numerology is a system that assigns numerical values to letters in the alphabet (A=1, B=2, ..., I=9, J=1, etc.).
+              This ancient practice converts names or words into numbers by adding these values together, potentially reducing them to a single digit through recursive addition.
+            </p>
+            <p>
+              Each resulting number (1-9) is believed to carry unique vibrations and meanings, offering insights into personality traits, life paths, and potential opportunities.
+              While it's important to note this is for entertainment purposes, it can be a fascinating tool for self-reflection and personal exploration.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
+          <p>Note: This calculator is for entertainment purposes only.</p>
         </div>
       </main>
-      <footer className="row-start-3 flex gap-[24px] flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
     </div>
   );
 }
