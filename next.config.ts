@@ -1,13 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: 'export',
-  images: {
-    unoptimized: true,
-  },
-  basePath: '',
-  assetPrefix: '',
-  trailingSlash: true,
+  // Vercel handles optimizations automatically
 };
 
 export default nextConfig;
