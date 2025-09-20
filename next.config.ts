@@ -5,8 +5,8 @@ const nextConfig: NextConfig = {
   images: {
     unoptimized: true,
   },
-  basePath: '/numcalc',
-  assetPrefix: '/numcalc/',
+  basePath: '',
+  assetPrefix: '',
   trailingSlash: true,
 };
 
