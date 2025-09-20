@@ -4,25 +4,24 @@ import { useState } from "react";
 import MatrixBackground from './components/MatrixBackground';
 
 export default function Home() {
-  console.log('Home component rendering');
   const [input, setInput] = useState("");
   const [result, setResult] = useState<number | null>(null);
   const [calculations, setCalculations] = useState<string[]>([]);
   const [calculatePerWord, setCalculatePerWord] = useState(true);
   const [showDetails, setShowDetails] = useState(true);
   const [useRecursiveReduction, setUseRecursiveReduction] = useState(true);
+  const [isSettingsCollapsed, setIsSettingsCollapsed] = useState(false);
 
   const reduceToSingleDigit = (num: number): number => {
-    // Check for master numbers first
     if (num === 11 || num === 22 || num === 33) return num;
     if (num < 10) return num;
     const reduced = String(num).split('').reduce((acc, digit) => acc + parseInt(digit), 0);
-    // Check if the reduced number is a master number
     if (reduced === 11 || reduced === 22 || reduced === 33) return reduced;
     return reduced > 9 ? reduceToSingleDigit(reduced) : reduced;
   };
 
   const calculatePythagoreanNumber = (text: string) => {
+    setIsSettingsCollapsed(true);
     const letterValues: { [key: string]: number } = {};
     'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((letter, index) => {
       letterValues[letter] = (index % 9) + 1;
@@ -87,26 +86,60 @@ export default function Home() {
     <div className="relative min-h-screen text-gray-900 dark:text-gray-100">
       <MatrixBackground />
       <main className="relative max-w-4xl mx-auto px-4 py-8 z-10">
-        <h1 className="text-3xl font-bold text-center mb-8 text-black dark:text-white mystical-title">
-          Pythagorean Numerology Calculator
-        </h1>
+        <div className="mb-8">
+          <div className="max-w-xl mx-auto flex justify-end">
+            <h1 className="text-xl md:text-2xl font-bold text-black dark:text-white mystical-title">
+              Pythagorean Numerology Calculator
+            </h1>
+          </div>
+          <div className="max-w-xl mx-auto flex justify-end">
+            <a 
+              href="https://dantoruno.com" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300 transition-colors"
+            >
+              by Dan Toruno
+            </a>
+          </div>
+        </div>
         <div className="bg-white dark:bg-[#171717] rounded-lg shadow-lg p-6 max-w-xl mx-auto">
           <div className="space-y-6">
             <div>
-              <label htmlFor="name" className="block text-sm font-medium mb-2">
-                Word, Name, or Words/Names List
-              </label>
+              <div className="flex items-center justify-between mb-2">
+                <label htmlFor="name" className="block text-sm font-medium">
+                  What are we calculating today?
+                </label>
+                <button
+                  onClick={() => setIsSettingsCollapsed(!isSettingsCollapsed)}
+                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 transition-colors"
+                >
+                  <svg
+                    className={`w-4 h-4 transform transition-transform ${isSettingsCollapsed ? 'rotate-90' : 'rotate-0'}`}
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M19 9l-7 7-7-7"
+                    />
+                  </svg>
+                </button>
+              </div>
               <input
                 type="text"
                 id="name"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 className="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-colors"
-                placeholder="Type a name or word..."
+                placeholder="Type a name, word, or multiple names to compare"
               />
             </div>
 
-            <div className="space-y-4">
+            <div className={`space-y-4 overflow-hidden transition-all duration-300 ${isSettingsCollapsed ? 'max-h-0 opacity-0 -mb-2' : 'max-h-[500px] opacity-100 mb-4'}`}>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Calculation</span>
                 <div className="flex items-center space-x-2">
@@ -198,24 +231,24 @@ export default function Home() {
 
                     <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
                       <h3 className="font-medium mb-2">Number Meaning</h3>
-                  <p className="italic">
-                    {result === 1 && "Unity and beginnings - representing leadership and independence"}
-                    {result === 2 && "Harmony and balance - symbolizing cooperation and diplomacy"}
-                    {result === 3 && "Creativity and expression - bringing joy and artistic abilities"}
-                    {result === 4 && "Stability and foundation - signifying hard work and reliability"}
-                    {result === 5 && "Freedom and adventure - representing change and versatility"}
-                    {result === 6 && "Love and harmony - symbolizing responsibility and care"}
-                    {result === 7 && "Wisdom and spirituality - representing analysis and understanding"}
-                    {result === 8 && "Power and abundance - symbolizing material success"}
-                    {result === 9 && "Completion and humanitarianism - representing compassion"}
-                    {result === 11 && "Master number - Intuition and spiritual insight"}
-                    {result === 22 && "Master number - Master builder and manifestation"}
-                    {result === 33 && "Master number - Master teacher and spiritual guidance"}
-                  </p>
+                      <p className="italic">
+                        {result === 1 && "Unity and beginnings - representing leadership and independence"}
+                        {result === 2 && "Harmony and balance - symbolizing cooperation and diplomacy"}
+                        {result === 3 && "Creativity and expression - bringing joy and artistic abilities"}
+                        {result === 4 && "Stability and foundation - signifying hard work and reliability"}
+                        {result === 5 && "Freedom and adventure - representing change and versatility"}
+                        {result === 6 && "Love and harmony - symbolizing responsibility and care"}
+                        {result === 7 && "Wisdom and spirituality - representing analysis and understanding"}
+                        {result === 8 && "Power and abundance - symbolizing material success"}
+                        {result === 9 && "Completion and humanitarianism - representing compassion"}
+                        {result === 11 && "Master number - Intuition and spiritual insight"}
+                        {result === 22 && "Master number - Master builder and manifestation"}
+                        {result === 33 && "Master number - Master teacher and spiritual guidance"}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          </div>
             )}
           </div>
         </div>
@@ -233,7 +266,6 @@ export default function Home() {
             </p>
           </div>
         </div>
-
       </main>
     </div>
   );

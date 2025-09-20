@@ -41,7 +41,7 @@ export default function MatrixBackground() {
           const intensity = (1 - (Math.sin(normalizedX * 7) - (normalizedY / 15) + (t * 0.5 + 2)) % 1) / 3;
           
           if (intensity > 0.05) { // Lower threshold for more visible points
-            const alpha = intensity; // Full intensity
+            const alpha = intensity * 0.11; // Apply 11% opacity to the points
             ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
             ctx.fillRect(x, y, 3, 3); // Slightly larger points
           }
@@ -68,22 +68,6 @@ export default function MatrixBackground() {
         className="w-full h-full"
         style={{
           background: 'black'
-        }}
-      />
-      {/* Main overlay */}
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          background: 'rgba(0, 0, 0, 0.9)',
-          pointerEvents: 'none'
-        }}
-      />
-      {/* Gradient overlay */}
-      <div 
-        className="absolute inset-0"
-        style={{ 
-          background: 'linear-gradient(to top, rgb(0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0) 100%)',
-          pointerEvents: 'none'
         }}
       />
     </div>
