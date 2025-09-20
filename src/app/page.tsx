@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
+import MatrixBackground from './components/MatrixBackground';
 
 export default function Home() {
+  console.log('Home component rendering');
   const [input, setInput] = useState("");
   const [result, setResult] = useState<number | null>(null);
   const [calculations, setCalculations] = useState<string[]>([]);
@@ -82,12 +84,13 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
-      <main className="max-w-4xl mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold text-center mb-8 text-purple-600 dark:text-purple-400">
+    <div className="relative min-h-screen text-gray-900 dark:text-gray-100">
+      <MatrixBackground />
+      <main className="relative max-w-4xl mx-auto px-4 py-8 z-10">
+        <h1 className="text-3xl font-bold text-center mb-8 text-black dark:text-white mystical-title">
           Pythagorean Numerology Calculator
         </h1>
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 max-w-xl mx-auto">
+        <div className="bg-white dark:bg-[#171717] rounded-lg shadow-lg p-6 max-w-xl mx-auto">
           <div className="space-y-6">
             <div>
               <label htmlFor="name" className="block text-sm font-medium mb-2">
@@ -107,7 +110,7 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Calculation</span>
                 <div className="flex items-center space-x-2">
-                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!calculatePerWord ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!calculatePerWord ? 'btn-accent' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     <input
                       type="radio"
                       className="hidden"
@@ -116,7 +119,7 @@ export default function Home() {
                     />
                     For All Letters
                   </label>
-                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${calculatePerWord ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${calculatePerWord ? 'btn-accent' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     <input
                       type="radio"
                       className="hidden"
@@ -131,7 +134,7 @@ export default function Home() {
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium">Display</span>
                 <div className="flex items-center space-x-2">
-                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!showDetails ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${!showDetails ? 'btn-accent' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     <input
                       type="radio"
                       className="hidden"
@@ -140,7 +143,7 @@ export default function Home() {
                     />
                     Result Only
                   </label>
-                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${showDetails ? 'bg-purple-600 text-white' : 'bg-gray-200 dark:bg-gray-700'}`}>
+                  <label className={`px-3 py-1 rounded-lg cursor-pointer ${showDetails ? 'btn-accent' : 'bg-gray-200 dark:bg-gray-700'}`}>
                     <input
                       type="radio"
                       className="hidden"
@@ -168,7 +171,7 @@ export default function Home() {
 
             <button
               onClick={() => calculatePythagoreanNumber(input)}
-              className="w-full bg-purple-600 hover:bg-purple-700 dark:bg-purple-500 dark:hover:bg-purple-600 text-white font-medium py-2 px-4 rounded-md transition-colors"
+              className="w-full btn-accent font-medium py-2 px-4 rounded-md transition-colors"
             >
               Calculate
             </button>
@@ -189,7 +192,7 @@ export default function Home() {
                   
                   <div className="text-center">
                     <h2 className="text-xl font-semibold mb-2">Your Number</h2>
-                    <div className="text-4xl font-bold text-purple-600 dark:text-purple-400">
+                    <div className="text-4xl font-bold text-black dark:text-white">
                       {result}
                     </div>
 
@@ -218,8 +221,8 @@ export default function Home() {
         </div>
         
         <div className="mt-8 max-w-2xl mx-auto">
-          <h2 className="text-xl font-bold mb-4 text-center text-purple-600 dark:text-purple-400">About Pythagorean Numerology</h2>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg p-6 text-sm text-gray-600 dark:text-gray-300">
+          <h2 className="text-xl font-bold mb-4 text-center text-black dark:text-white">About Pythagorean Numerology</h2>
+          <div className="bg-white dark:bg-[#171717] rounded-lg shadow-lg p-6 text-sm text-gray-600 dark:text-gray-300">
             <p className="mb-4">
               Pythagorean numerology is a system that assigns numerical values to letters in the alphabet (A=1, B=2, ..., I=9, J=1, etc.).
               This ancient practice converts names or words into numbers by adding these values together, potentially reducing them to a single digit through recursive addition.
@@ -231,9 +234,6 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="mt-8 text-center text-sm text-gray-500 dark:text-gray-400">
-          <p>Note: This calculator is for entertainment purposes only.</p>
-        </div>
       </main>
     </div>
   );
