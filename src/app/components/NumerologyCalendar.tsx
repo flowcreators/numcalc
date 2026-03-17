@@ -442,7 +442,7 @@ export default function NumerologyCalendar() {
               </button>
             ) : (
               <div className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-[#0B0B0B] text-gray-400 dark:text-gray-600 text-[10px] font-black inter-caps tracking-widest border border-gray-200 dark:border-gray-800 leading-none">
-                THIS IS TODAY'S DATE
+                THIS IS TODAY&apos;S DATE
               </div>
             )}
           </div>
