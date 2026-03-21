@@ -295,7 +295,7 @@ export default function NumerologyCalendar() {
   }, [selectedEnergy]);
 
   const formatDate = (d: Date) =>
-    `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}, ${d.getFullYear()}`;
+    `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
 
   /* ================================================================ */
   /*  Render                                                          */
@@ -308,15 +308,15 @@ export default function NumerologyCalendar() {
   };
 
   return (
-    <div className="w-full max-w-3xl mx-auto space-y-6">
+    <div className="w-full max-w-3xl mx-auto space-y-6 px-0 md:px-4">
       {/* ---------- Calendar Header --------------------------------- */}
-      <div className="bg-white dark:bg-[#171717] rounded-lg p-4 shadow-lg">
+      <div className="bg-white dark:bg-[#171717] rounded-lg p-2 md:p-4 shadow-lg">
         {/* weekday headers & navigation */}
-        <div className="grid grid-cols-[auto_1fr_auto] items-center mb-2 px-2">
+        <div className="grid grid-cols-[auto_1fr_auto] items-center mb-2 px-1 md:px-2">
           {/* Left Arrow */}
           <button
             onClick={prevMonth}
-            className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-[#1a1a1a] flex items-center justify-center transition-colors text-lg font-bold mr-2"
+            className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-[#1a1a1a] flex items-center justify-center transition-colors text-lg font-bold mr-1 md:mr-2"
           >
             ‹
           </button>
@@ -326,7 +326,7 @@ export default function NumerologyCalendar() {
             {WEEKDAYS.map((w) => (
               <div
                 key={w}
-                className="text-center text-sm text-gray-500 dark:text-gray-400 font-medium py-1"
+                className="text-center text-[10px] md:text-sm text-gray-500 dark:text-gray-400 font-medium py-1"
               >
                 {w}
               </div>
@@ -336,14 +336,14 @@ export default function NumerologyCalendar() {
           {/* Right Arrow */}
           <button
             onClick={nextMonth}
-            className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-[#1a1a1a] flex items-center justify-center transition-colors text-lg font-bold ml-2"
+            className="w-8 h-8 rounded-lg bg-gray-200 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200 hover:bg-gray-300 dark:hover:bg-[#1a1a1a] flex items-center justify-center transition-colors text-lg font-bold ml-1 md:ml-2"
           >
             ›
           </button>
         </div>
 
         {/* day cells */}
-        <div className="grid grid-cols-7 gap-1">
+        <div className="grid grid-cols-7 gap-0.5 md:gap-1">
           {calendarDays.map((info, idx) => {
             const { date, day, energy, fullMoon, isAdjacentMonth } = info;
             const isT = same(date, today);
@@ -354,14 +354,14 @@ export default function NumerologyCalendar() {
                 key={`day-${idx}`}
                 onClick={() => setSelectedDate(new Date(date))}
                 className={`
-                  relative aspect-[2/1] rounded-lg flex items-center justify-center text-sm font-medium transition-all
+                  relative aspect-square md:aspect-[2/1] rounded-md md:rounded-lg flex items-center justify-center text-xs md:text-sm font-medium transition-all
                   ${
                     isAdjacentMonth
                       ? "bg-transparent text-gray-400/30 dark:text-gray-600/40 border border-gray-200/50 dark:border-gray-800/50"
                       : isT
-                        ? "ring-2 ring-green-600 ring-offset-2 ring-offset-[#171717] bg-[#0B0B0B] text-green-300"
+                        ? "ring-1 md:ring-2 ring-green-600 ring-offset-1 md:ring-offset-2 ring-offset-[#171717] bg-[#0B0B0B] text-green-300"
                         : isSel
-                          ? "ring-2 ring-[#8D7F62] bg-[#1a160e] text-[#8D7F62] font-bold"
+                          ? "ring-1 md:ring-2 ring-[#8D7F62] bg-[#1a160e] text-[#8D7F62] font-bold"
                           : "bg-gray-100 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200"
                   }
                 `}
@@ -371,7 +371,7 @@ export default function NumerologyCalendar() {
                 {/* Master-number badge */}
                 {(energy.isFullSumMaster || energy.isStandardMaster) && (
                   <span
-                    className="absolute top-0.5 right-0.5 text-[11px] font-black text-[#0056E1] leading-none bg-black/70 rounded-bl-md px-1.5 py-0.5 cursor-help z-10"
+                    className="absolute top-0 right-0 text-[8px] md:text-[11px] font-black text-[#0056E1] leading-none bg-black/70 rounded-bl-md px-1 md:px-1.5 py-0.5 cursor-help z-10"
                     onMouseEnter={(e) => handleMasterBadgeEnter(e, energy.isStandardMaster ? energy.standardEnergy : energy.fullSumEnergy)}
                     onMouseLeave={() => setTooltipMaster(null)}
                   >
@@ -382,7 +382,7 @@ export default function NumerologyCalendar() {
                 {/* Hidden Master Star */}
                 {energy.isHiddenMaster && (
                   <span
-                    className="absolute top-1 left-1 text-[10px] font-bold text-yellow-300 leading-none bg-black/70 rounded-br-md px-1 py-0.5 cursor-help z-10"
+                    className="absolute top-0 left-0 text-[8px] md:text-[10px] font-bold text-yellow-300 leading-none bg-black/70 rounded-br-md px-0.5 md:px-1 py-0.5 cursor-help z-10"
                     onMouseEnter={(e) => handleMasterBadgeEnter(e, energy.hiddenEnergy || 0)}
                     onMouseLeave={() => setTooltipMaster(null)}
                   >
@@ -392,7 +392,7 @@ export default function NumerologyCalendar() {
 
                 {/* Full-moon indicator (Swapped to bottom right) */}
                 {fullMoon && (
-                  <span className="absolute bottom-1.5 right-1.5 text-[10px] leading-none pointer-events-none z-10">
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] md:text-[10px] leading-none pointer-events-none z-10">
                     🌕
                   </span>
                 )}
@@ -400,7 +400,7 @@ export default function NumerologyCalendar() {
                 {/* Wealth day (28th) (Swapped to bottom left) */}
                 {day === 28 && (
                   <span
-                    className="absolute bottom-1.5 left-1.5 text-[10px] leading-none cursor-help z-10"
+                    className="absolute bottom-0.5 left-0.5 text-[8px] md:text-[10px] leading-none cursor-help z-10"
                     onMouseEnter={(e) => handleMasterBadgeEnter(e, -28)}
                     onMouseLeave={() => setTooltipMaster(null)}
                   >
@@ -438,54 +438,19 @@ export default function NumerologyCalendar() {
                 onClick={goToToday}
                 className="px-6 py-2 rounded-xl bg-white hover:bg-gray-100 text-black text-xs font-bold transition-all flex items-center focus:outline-none leading-none shadow-sm border border-gray-300"
               >
-                BACK TO THE PRESENT
+                RETURN TODAY
               </button>
             ) : (
               <div className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-[#0B0B0B] text-gray-400 dark:text-gray-600 text-[10px] font-black inter-caps tracking-widest border border-gray-200 dark:border-gray-800 leading-none">
-                THIS IS TODAY&apos;S DATE
+                TODAY
               </div>
             )}
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* --- Left: Calculation Breakdowns --- */}
-          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
-            {/* Full Sum */}
-            <div>
-              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Full Sum</h4>
-              <p className="text-[10px] text-gray-500 mb-2">All digits summed flat</p>
-              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                {breakdownLines.fullSum.map((line, i) => (
-                  <p key={i} className={i === breakdownLines.fullSum.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
-                ))}
-              </div>
-            </div>
-            {/* Standard */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Standard</h4>
-              <p className="text-[10px] text-gray-500 mb-2">Month + Day + Year sum</p>
-              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                {breakdownLines.standard.map((line, i) => (
-                  <p key={i} className={i === breakdownLines.standard.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
-                ))}
-              </div>
-            </div>
-            {/* Hidden Master Calculation */}
-            {breakdownLines.hidden.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Hidden Calculation</h4>
-                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                  {breakdownLines.hidden.map((line, i) => (
-                    <p key={i}>{line}</p>
-                  ))}
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* --- Right: Energy Results --- */}
-          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
+          {/* --- Left: Energy Results --- */}
+          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4 order-last md:order-first">
             {/* Primary Energy */}
             <div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Primary Energy</p>
@@ -536,6 +501,41 @@ export default function NumerologyCalendar() {
                 <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.hiddenEnergy]}</p>
               )}
             </div>
+          </div>
+
+          {/* --- Right: Calculation Breakdowns --- */}
+          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
+            {/* Full Sum */}
+            <div>
+              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Full Sum</h4>
+              <p className="text-[10px] text-gray-500 mb-2">All digits summed flat</p>
+              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                {breakdownLines.fullSum.map((line, i) => (
+                  <p key={i} className={i === breakdownLines.fullSum.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
+                ))}
+              </div>
+            </div>
+            {/* Standard */}
+            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Standard</h4>
+              <p className="text-[10px] text-gray-500 mb-2">Month + Day + Year sum</p>
+              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                {breakdownLines.standard.map((line, i) => (
+                  <p key={i} className={i === breakdownLines.standard.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
+                ))}
+              </div>
+            </div>
+            {/* Hidden Master Calculation */}
+            {breakdownLines.hidden.length > 0 && (
+              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
+                <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Hidden Calculation</h4>
+                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
+                  {breakdownLines.hidden.map((line, i) => (
+                    <p key={i}>{line}</p>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>

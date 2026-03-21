@@ -37,7 +37,7 @@ export default function Home() {
     let finalResult: number;
 
     if (calculatePerWord) {
-      const words = text.split(/[\s.]+/).filter(word => word.length > 0);
+      const words = text.split(/[\s./]+/).filter(word => word.length > 0);
       const wordResults = words.map(word => {
         const wordSum = word
           .toUpperCase()
@@ -91,16 +91,16 @@ export default function Home() {
   return (
     <div className="relative min-h-screen text-gray-900 dark:text-gray-100">
       <MatrixBackground />
-      <main className="relative max-w-4xl mx-auto px-4 py-8 z-10">
-        <div className="mb-8">
+      <main className="relative max-w-4xl mx-auto px-4 pt-6 pb-8 z-10">
+        <div className="mb-4">
           <div className="max-w-2xl mx-auto flex justify-end">
             <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white mystical-title">
-              NUMCALC ㊥
+              NUMCAL ㊥
             </h1>
           </div>
           <div className="max-w-2xl mx-auto flex justify-end">
             <p className="text-xs text-gray-500 dark:text-gray-400">
-              A Numerology Resource by Dan Toruno
+              Numerology Resource by Runo
             </p>
           </div>
         </div>
@@ -115,11 +115,7 @@ export default function Home() {
                 : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-[#1a1a1a]"
             }`}
           >
-            Calculator
-            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="4" y="2" width="16" height="20" rx="2" strokeWidth="2"/>
-              <path d="M8 7h8M8 11h8M8 15h4" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
+            Calc
           </button>
           <button
             onClick={() => setActiveTab("calendar")}
@@ -130,10 +126,6 @@ export default function Home() {
             }`}
           >
             Calendar
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="3" y="4" width="18" height="18" rx="2" strokeWidth="2"/>
-              <path d="M16 2v4M8 2v4M3 10h18" strokeWidth="2" strokeLinecap="round"/>
-            </svg>
           </button>
           <button
             onClick={() => setActiveTab("lifepath")}
@@ -144,13 +136,6 @@ export default function Home() {
             }`}
           >
             Life Path
-            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <rect x="3" y="9" width="18" height="12" rx="1" strokeWidth="2"/>
-              <rect x="5" y="6" width="14" height="3" strokeWidth="2"/>
-              <path d="M12 6V21M3 13h18" strokeWidth="2" strokeLinecap="round"/>
-              <path d="M12 6c0-2 1.5-3 2.5-2S16 6 12 6z" strokeWidth="2" strokeLinejoin="round"/>
-              <path d="M12 6c0-2-1.5-3-2.5-2S8 6 12 6z" strokeWidth="2" strokeLinejoin="round"/>
-            </svg>
           </button>
         </div>
 
@@ -257,12 +242,45 @@ export default function Home() {
               </div>
             </div>
 
-            <button
-              onClick={() => calculatePythagoreanNumber(input)}
-              className="w-full btn-accent font-medium py-2 px-4 rounded-md transition-colors"
-            >
-              Calculate
-            </button>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  const items = ["flowcreators.org", "Balanced Beings", "flowcreators", "gumroad.com/flowcreators"];
+                  const currentIndex = items.indexOf(input);
+                  const nextIndex = (currentIndex + 1) % items.length;
+                  const nextItem = items[nextIndex];
+                  setInput(nextItem);
+                  calculatePythagoreanNumber(nextItem);
+                }}
+                className="p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                title="Cycle Brand Names"
+              >
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+              <button
+                onClick={() => calculatePythagoreanNumber(input)}
+                className="flex-1 btn-accent font-medium py-2 px-4 rounded-md transition-colors"
+              >
+                Calculate
+              </button>
+              {input && (
+                <button
+                  onClick={() => {
+                    setInput("");
+                    setResult(null);
+                    setCalculations([]);
+                  }}
+                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                  title="Clear Results"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
             {result !== null && (
               <div className="mt-6">
