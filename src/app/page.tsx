@@ -284,26 +284,8 @@ export default function Home() {
 
             {result !== null && (
               <div className="mt-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {showDetails && calculations.length > 0 && (
-                    <div className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-lg text-left order-1 md:order-none">
-                      <h3 className="font-medium mb-2 text-sm">Calculation Details</h3>
-                      {calculations.map((calc, index) => {
-                        const isLabel = calc.startsWith('Reduced:') || calc.startsWith('Total:') || calc.includes('→');
-                        const isLetterLine = /^[A-Z] = \d+$/.test(calc);
-                        const isWordTotal = !isLabel && !isLetterLine && calc.includes(' = ');
-                        return isLabel ? (
-                          <div key={index} className="text-sm text-gray-600 dark:text-gray-300">{calc}</div>
-                        ) : isWordTotal ? (
-                          <div key={index} className="text-sm font-semibold text-white mystical-title" style={{fontFamily: 'var(--font-space-grotesk)'}}>{calc}</div>
-                        ) : (
-                          <div key={index} className="text-sm text-gray-400" style={{fontFamily: 'var(--font-space-grotesk)'}}>{calc}</div>
-                        );
-                      })}
-                    </div>
-                  )}
-                  
-                  <div className="text-center">
+                <div className="flex flex-col md:grid md:grid-cols-2 gap-6">
+                  <div className="text-center order-1 md:order-2">
                     <h2 className="text-xl font-semibold mb-2">Your Number</h2>
                     <div className="text-5xl font-extrabold text-white mystical-title py-2">
                       {result}
@@ -327,6 +309,24 @@ export default function Home() {
                       </p>
                     </div>
                   </div>
+
+                  {showDetails && calculations.length > 0 && (
+                    <div className="p-4 bg-gray-50 dark:bg-[#0B0B0B] rounded-lg text-left order-2 md:order-1">
+                      <h3 className="font-medium mb-2 text-sm">Calculation Details</h3>
+                      {calculations.map((calc, index) => {
+                        const isLabel = calc.startsWith('Reduced:') || calc.startsWith('Total:') || calc.includes('→');
+                        const isLetterLine = /^[A-Z] = \d+$/.test(calc);
+                        const isWordTotal = !isLabel && !isLetterLine && calc.includes(' = ');
+                        return isLabel ? (
+                          <div key={index} className="text-sm text-gray-600 dark:text-gray-300">{calc}</div>
+                        ) : isWordTotal ? (
+                          <div key={index} className="text-sm font-semibold text-white mystical-title" style={{fontFamily: 'var(--font-space-grotesk)'}}>{calc}</div>
+                        ) : (
+                          <div key={index} className="text-sm text-gray-400" style={{fontFamily: 'var(--font-space-grotesk)'}}>{calc}</div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               </div>
             )}
