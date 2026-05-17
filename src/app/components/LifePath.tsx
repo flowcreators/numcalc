@@ -297,7 +297,7 @@ const getLunarDateParts = (date: Date) => {
     day: "numeric",
   });
   const parts = formatter.formatToParts(date);
-  const relatedYear = parts.find((part) => part.type === "relatedYear")?.value;
+  const relatedYear = parts.find((part) => (part.type as string) === "relatedYear")?.value;
   const monthPart = parts.find((part) => part.type === "month")?.value;
   const dayPart = parts.find((part) => part.type === "day")?.value;
 
