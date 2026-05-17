@@ -167,7 +167,11 @@ const masterTooltip: Record<number, string> = {
 /*  Component                                                         */
 /* ================================================================== */
 
-export default function NumerologyCalendar() {
+type NumerologyCalendarProps = {
+  onSendTodayToLifePath?: () => void;
+};
+
+export default function NumerologyCalendar({ onSendTodayToLifePath }: NumerologyCalendarProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
@@ -432,11 +436,11 @@ export default function NumerologyCalendar() {
           </div>
 
           {/* Right: Back to Present Button */}
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end gap-2">
             {(!same(selectedDate, today) || viewMonth !== today.getMonth() || viewYear !== today.getFullYear()) ? (
               <button
                 onClick={goToToday}
-                className="px-6 py-2 rounded-xl bg-white hover:bg-gray-100 text-black text-xs font-bold transition-all flex items-center focus:outline-none leading-none shadow-sm border border-gray-300"
+                className="btn-accent px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center focus:outline-none leading-none"
               >
                 RETURN TODAY
               </button>
@@ -445,6 +449,13 @@ export default function NumerologyCalendar() {
                 TODAY
               </div>
             )}
+            <button
+              onClick={onSendTodayToLifePath}
+              className="px-4 py-2 rounded-xl border border-[#8D7F62] text-[#8D7F62] hover:bg-[#1a160e] text-xs font-bold transition-all flex items-center gap-2 focus:outline-none whitespace-nowrap leading-none"
+            >
+              GO DEEPER
+              <span aria-hidden="true">→</span>
+            </button>
           </div>
         </div>
 

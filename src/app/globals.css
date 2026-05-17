@@ -1,9 +1,11 @@
 @import "tailwindcss";
 @import "./animations.css";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0d0d0d;
+  --foreground: #ededed;
 }
 
 :root {
@@ -13,29 +15,32 @@
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0d0d0d;
-    --foreground: #ededed;
-  }
-}
-
 /* Button styles */
 .btn-accent {
-  background-color: #ffffff;
-  color: #000000;
-  border: 1px solid #ffffff;
-  transition: all 0.2s ease-in-out;
+  background-color: #0b0b0b;
+  color: #ffffff;
+  border: 1px solid #8d7f62;
+  transition: all 0.3s ease-in-out;
 }
 
 .btn-accent:hover {
-  background-color: #f0f0f0;
-  border-color: #f0f0f0;
+  background-color: #0b0b0b;
+  border-color: #a89872;
+  filter: brightness(1.1);
+}
+
+.btn-hover-subtle {
+  transition: all 0.3s ease-in-out;
+}
+
+.btn-hover-subtle:hover {
+  filter: brightness(1.1);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
+  color-scheme: dark;
   font-family: var(--font-inter), sans-serif;
 }
 
@@ -46,4 +51,13 @@ p {
 .inter-caps {
   font-family: var(--font-inter), 'Inter', sans-serif;
   font-weight: 800;
+}
+
+@keyframes merkabah-shift {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(60deg); }
+}
+
+.merkabah-animate svg {
+  animation: merkabah-shift 0.15s cubic-bezier(0.4, 0, 0.2, 1);
 }

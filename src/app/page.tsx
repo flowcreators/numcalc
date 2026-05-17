@@ -1,12 +1,64 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import MatrixBackground from './components/MatrixBackground';
 import NumerologyCalendar from './components/NumerologyCalendar';
 import LifePath from './components/LifePath';
 
+type TabKey = "calculator" | "calendar" | "lifepath";
+
+const TAB_COOKIE_NAME = "numcalc-active-tab";
+
+const hashToTab = (hash: string): TabKey | null => {
+  const normalizedHash = hash.replace(/^#/, "").toLowerCase();
+
+  switch (normalizedHash) {
+    case "calculator":
+    case "gematria":
+      return "calculator";
+    case "calendar":
+      return "calendar";
+    case "lifepath":
+    case "full":
+    case "profile":
+    case "fullprofile":
+    case "full-profile":
+      return "lifepath";
+    default:
+      return null;
+  }
+};
+
+const tabToHash = (tab: TabKey) => {
+  switch (tab) {
+    case "calculator":
+      return "#calculator";
+    case "calendar":
+      return "#calendar";
+    case "lifepath":
+      return "#profile";
+  }
+};
+
+const getCookieValue = (name: string) => {
+  if (typeof document === "undefined") return null;
+
+  const cookie = document.cookie
+    .split("; ")
+    .find((entry) => entry.startsWith(`${name}=`));
+
+  return cookie ? decodeURIComponent(cookie.split("=")[1]) : null;
+};
+
+const formatDateForLifePath = (date: Date) => {
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const year = String(date.getFullYear());
+  return `${month}/${day}/${year}`;
+};
+
 export default function Home() {
-  const [activeTab, setActiveTab] = useState<"calculator" | "calendar" | "lifepath">("calendar");
+  const [activeTab, setActiveTab] = useState<TabKey>("calendar");
   const [input, setInput] = useState("");
   const [result, setResult] = useState<number | null>(null);
   const [calculations, setCalculations] = useState<string[]>([]);
@@ -17,6 +69,9 @@ export default function Home() {
   const [showAboutNumerology, setShowAboutNumerology] = useState(false);
   const [showNumberEnergies, setShowNumberEnergies] = useState(false);
   const [showAngelNumbers, setShowAngelNumbers] = useState(false);
+  const [lifePathPrefillBirthdate, setLifePathPrefillBirthdate] = useState("");
+  const [calendarResetSignal, setCalendarResetSignal] = useState(0);
+  const [lifePathResetSignal, setLifePathResetSignal] = useState(0);
 
   const reduceToSingleDigit = (num: number): number => {
     if (num === 11 || num === 22 || num === 33) return num;
@@ -88,20 +143,89 @@ export default function Home() {
     setResult(finalResult);
   };
 
+  useEffect(() => {
+    const savedTab =
+      hashToTab(window.location.hash) ??
+      hashToTab(getCookieValue(TAB_COOKIE_NAME) ?? "") ??
+      hashToTab(window.localStorage.getItem(TAB_COOKIE_NAME) ?? "") ??
+      "calendar";
+
+    setActiveTab(savedTab);
+  }, []);
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hashTab = hashToTab(window.location.hash);
+      if (hashTab && hashTab !== activeTab) {
+        setActiveTab(hashTab);
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, [activeTab]);
+
+  useEffect(() => {
+    const nextHash = tabToHash(activeTab);
+    if (window.location.hash !== nextHash) {
+      window.history.replaceState(null, "", nextHash);
+    }
+
+    window.localStorage.setItem(TAB_COOKIE_NAME, nextHash);
+    document.cookie = `${TAB_COOKIE_NAME}=${encodeURIComponent(nextHash)}; path=/; max-age=31536000; samesite=lax`;
+  }, [activeTab]);
+
+  const sendTodayToLifePath = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    setLifePathPrefillBirthdate(formatDateForLifePath(today));
+    setActiveTab("lifepath");
+  };
+
+  const resetCurrentPage = () => {
+    switch (activeTab) {
+      case "calculator":
+        setInput("");
+        setResult(null);
+        setCalculations([]);
+        setCalculatePerWord(true);
+        setShowDetails(true);
+        setUseRecursiveReduction(true);
+        setIsSettingsCollapsed(true);
+        break;
+      case "calendar":
+        setCalendarResetSignal((currentValue) => currentValue + 1);
+        break;
+      case "lifepath":
+        setLifePathPrefillBirthdate("");
+        setLifePathResetSignal((currentValue) => currentValue + 1);
+        break;
+    }
+  };
+
   return (
     <div className="relative min-h-screen text-gray-900 dark:text-gray-100">
       <MatrixBackground />
       <main className="relative max-w-4xl mx-auto px-4 pt-6 pb-8 z-10">
         <div className="mb-4">
           <div className="max-w-2xl mx-auto flex justify-end">
-            <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white mystical-title">
-              NUMCAL ㊥
+            <h1 className="flex items-baseline gap-2 text-2xl font-bold text-black dark:text-white md:text-3xl mystical-title">
+              <span>NUMCAL</span>
+              <span className="text-[12px] font-semibold uppercase tracking-[0.18em] text-[#8D7F62] md:text-sm leading-none">
+                V1.1
+              </span>
+              <span>㊥</span>
             </h1>
           </div>
           <div className="max-w-2xl mx-auto flex justify-end">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Numerology Resource by Runo
-            </p>
+            <a
+              href="https://dantoruno.com"
+              target="_blank"
+              rel="noreferrer"
+              className="text-xs text-gray-500 transition-colors hover:text-[#8D7F62] dark:text-gray-400"
+            >
+              Numerology Resource by Dan Toruno
+            </a>
           </div>
         </div>
 
@@ -109,38 +233,47 @@ export default function Home() {
         <div className="max-w-2xl mx-auto mb-6 flex justify-end gap-2">
           <button
             onClick={() => setActiveTab("calculator")}
-            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider transition-colors border flex items-center gap-2 ${
+            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider btn-hover-subtle border flex items-center gap-2 ${
               activeTab === "calculator"
                 ? "border-[#8D7F62] bg-[#0B0B0B] text-white"
-                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-[#1a1a1a]"
+                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400"
             }`}
           >
-            Calc
+            Gematria
           </button>
           <button
             onClick={() => setActiveTab("calendar")}
-            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider transition-colors border flex items-center gap-2 ${
+            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider btn-hover-subtle border flex items-center gap-2 ${
               activeTab === "calendar"
                 ? "border-[#8D7F62] bg-[#0B0B0B] text-white"
-                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-[#1a1a1a]"
+                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400"
             }`}
           >
             Calendar
           </button>
           <button
             onClick={() => setActiveTab("lifepath")}
-            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider transition-colors border flex items-center gap-2 ${
+            className={`inter-caps px-4 py-2 rounded-lg text-sm uppercase tracking-wider btn-hover-subtle border flex items-center gap-2 ${
               activeTab === "lifepath"
                 ? "border-[#8D7F62] bg-[#0B0B0B] text-white"
-                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400 hover:bg-gray-300 dark:hover:bg-[#1a1a1a]"
+                : "border-transparent bg-gray-200 dark:bg-[#0B0B0B] text-gray-600 dark:text-gray-400"
             }`}
           >
             Life Path
           </button>
+          <button
+            onClick={resetCurrentPage}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-[#0B0B0B] px-4 py-2 text-white btn-hover-subtle"
+            title={`Reset ${activeTab === "calculator" ? "Gematria" : activeTab === "calendar" ? "Calendar" : "Life Path"}`}
+            aria-label={`Reset ${activeTab === "calculator" ? "Gematria" : activeTab === "calendar" ? "Calendar" : "Life Path"}`}
+          >
+            <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
         </div>
 
-        {activeTab === "calculator" ? (
-        <>
+        <section className={activeTab === "calculator" ? "block" : "hidden"} aria-hidden={activeTab !== "calculator"}>
         <div className="bg-white dark:bg-[#171717] rounded-lg shadow-lg p-6 max-w-2xl mx-auto">
           <div className="space-y-6">
             <div>
@@ -168,15 +301,71 @@ export default function Home() {
                 </button>
               </div>
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">Great for naming brands &amp; decision making based on energetic alignment</p>
-              <input
-                type="text"
-                id="name"
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && calculatePythagoreanNumber(input)}
-                className="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0B0B0B] outline-none focus:border-green-400/40 focus:shadow-[0_0_8px_rgba(0,255,0,0.20)] transition-all font-light placeholder:font-normal"
-                placeholder="Type a name, word, or multiple names to compare"
-              />
+              <div className="flex gap-2">
+                <button
+                  onClick={() => {
+                    const items = ["flowcreators.org", "Balanced Beings", "flowcreators", "gumroad.com/flowcreators"];
+                    const currentIndex = items.indexOf(input);
+                    const nextIndex = (currentIndex + 1) % items.length;
+                    const nextItem = items[nextIndex];
+                    setInput(nextItem);
+                    calculatePythagoreanNumber(nextItem);
+                    
+                    // Trigger merkabah animation
+                    const btn = document.getElementById('merkabah-btn');
+                    if (btn) {
+                      btn.classList.remove('merkabah-animate');
+                      void btn.offsetWidth; // trigger reflow
+                      btn.classList.add('merkabah-animate');
+                    }
+                  }}
+                  id="merkabah-btn"
+                  className="rounded-md border border-[#8D7F62] p-2 bg-[#0B0B0B] text-white btn-hover-subtle group"
+                  title="Cycle Brand Names"
+                >
+                  <svg className="h-6 w-6 transition-transform group-hover:scale-105" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+                    {/* Perfect Merkabah / Star of David geometry */}
+                    <path d="M12 3L19.7942 16.5H4.20577L12 3Z" />
+                    <path d="M12 21L4.20577 7.5H19.7942L12 21Z" />
+                    <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none" />
+                  </svg>
+                </button>
+                <input
+                  type="text"
+                  id="name"
+                  value={input}
+                  onChange={(e) => {
+                    const nextValue = e.target.value;
+                    setInput(nextValue);
+                    if (!nextValue.trim()) {
+                      setResult(null);
+                      setCalculations([]);
+                    }
+                  }}
+                  onKeyDown={(e) => e.key === 'Enter' && calculatePythagoreanNumber(input)}
+                  className="w-full px-4 py-2 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0B0B0B] outline-none focus:border-green-400/40 focus:shadow-[0_0_8px_rgba(0,255,0,0.20)] transition-all font-light placeholder:font-normal"
+                  placeholder="Type a name, word, or multiple names to compare"
+                />
+                <button
+                  onClick={() => calculatePythagoreanNumber(input)}
+                  className="btn-accent min-w-10 rounded-md px-3 py-2 font-medium transition-colors flex items-center justify-center"
+                  title="Calculate"
+                >
+                  <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                    <rect x="4" y="2" width="16" height="20" rx="2" ry="2" />
+                    <line x1="8" y1="18" x2="16" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="6.01" />
+                    <line x1="12" y1="6" x2="12" y2="6.01" />
+                    <line x1="8" y1="6" x2="8" y2="6.01" />
+                    <line x1="16" y1="10" x2="16" y2="10.01" />
+                    <line x1="12" y1="10" x2="12" y2="10.01" />
+                    <line x1="8" y1="10" x2="8" y2="10.01" />
+                    <line x1="16" y1="14" x2="16" y2="14.01" />
+                    <line x1="12" y1="14" x2="12" y2="14.01" />
+                    <line x1="8" y1="14" x2="8" y2="14.01" />
+                  </svg>
+                </button>
+              </div>
             </div>
 
             <div className={`space-y-4 overflow-hidden transition-all duration-300 ${isSettingsCollapsed ? 'max-h-0 opacity-0 -mb-2' : 'max-h-[500px] opacity-100 mb-4'}`}>
@@ -241,48 +430,7 @@ export default function Home() {
                 </label>
               </div>
             </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={() => {
-                  const items = ["flowcreators.org", "Balanced Beings", "flowcreators", "gumroad.com/flowcreators"];
-                  const currentIndex = items.indexOf(input);
-                  const nextIndex = (currentIndex + 1) % items.length;
-                  const nextItem = items[nextIndex];
-                  setInput(nextItem);
-                  calculatePythagoreanNumber(nextItem);
-                }}
-                className="p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                title="Cycle Brand Names"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-              </button>
-              <button
-                onClick={() => calculatePythagoreanNumber(input)}
-                className="flex-1 btn-accent font-medium py-2 px-4 rounded-md transition-colors"
-              >
-                Calculate
-              </button>
-              {input && (
-                <button
-                  onClick={() => {
-                    setInput("");
-                    setResult(null);
-                    setCalculations([]);
-                  }}
-                  className="p-2 border border-gray-300 dark:border-gray-600 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-                  title="Clear Results"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                  </svg>
-                </button>
-              )}
-            </div>
-
-            {result !== null && (
+            {result !== null && input.trim().length > 0 && (
               <div className="mt-6">
                 <div className="flex flex-col md:grid md:grid-cols-2 gap-6">
                   <div className="text-center order-1 md:order-2">
@@ -343,7 +491,7 @@ export default function Home() {
             >
               <span className="font-semibold text-black dark:text-white text-sm">About Numerology</span>
               <svg
-                className={`w-4 h-4 transition-transform duration-200 ${showAboutNumerology ? 'rotate-0' : '-rotate-90'}`}
+                className={`w-4 h-4 transition-transform duration-200 ${showAboutNumerology ? 'rotate-0' : 'rotate-90'}`}
                 fill="none"
                 stroke="#8D7F62"
                 viewBox="0 0 24 24"
@@ -373,7 +521,7 @@ export default function Home() {
             >
               <span className="font-semibold text-black dark:text-white text-sm">What The Numbers Mean</span>
               <svg
-                className={`w-4 h-4 transition-transform duration-200 ${showNumberEnergies ? 'rotate-0' : '-rotate-90'}`}
+                className={`w-4 h-4 transition-transform duration-200 ${showNumberEnergies ? 'rotate-0' : 'rotate-90'}`}
                 fill="none"
                 stroke="#8D7F62"
                 viewBox="0 0 24 24"
@@ -427,7 +575,7 @@ export default function Home() {
             >
               <span className="font-semibold text-black dark:text-white text-sm">Synchronicities &amp; Angel Numbers</span>
               <svg
-                className={`w-4 h-4 transition-transform duration-200 ${showAngelNumbers ? 'rotate-0' : '-rotate-90'}`}
+                className={`w-4 h-4 transition-transform duration-200 ${showAngelNumbers ? 'rotate-0' : 'rotate-90'}`}
                 fill="none"
                 stroke="#8D7F62"
                 viewBox="0 0 24 24"
@@ -475,12 +623,15 @@ export default function Home() {
             )}
           </div>
         </div>
-        </>
-        ) : activeTab === "calendar" ? (
-          <NumerologyCalendar />
-        ) : (
-          <LifePath />
-        )}
+        </section>
+
+        <section className={activeTab === "calendar" ? "block" : "hidden"} aria-hidden={activeTab !== "calendar"}>
+          <NumerologyCalendar key={calendarResetSignal} onSendTodayToLifePath={sendTodayToLifePath} />
+        </section>
+
+        <section className={activeTab === "lifepath" ? "block" : "hidden"} aria-hidden={activeTab !== "lifepath"}>
+          <LifePath prefilledBirthdate={lifePathPrefillBirthdate} resetSignal={lifePathResetSignal} />
+        </section>
       </main>
     </div>
   );
