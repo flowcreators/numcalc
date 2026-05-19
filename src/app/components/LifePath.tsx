@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import MerkabahIcon3D from "./MerkabahIcon3D";
+import { upsertSavedEntry } from "../savedEntries";
 
 const MASTER = new Set([11, 22, 33]);
 const VOWELS = new Set(["A", "E", "I", "O", "U"]);
@@ -93,26 +95,44 @@ type LifePathValue = {
   note: string;
 };
 
+type PinnacleValue = {
+  ordinal: number;
+  reducedTotal: number;
+  final: number;
+  label: string;
+};
+
 type ProfileResult = {
   normalizedName: string;
   displayName: string;
   formattedBirthdate: string;
-  birthdate: ParsedDate;
+  birthdate: ParsedDate | null;
   hasName: boolean;
-  lifePath: LifePathValue;
-  personalYear: { raw: number; final: number; referenceYear: number };
-  lunarLifePath: LifePathValue & {
+  hasBirthdate: boolean;
+  lifePath: LifePathValue | null;
+  personalYear: { raw: number; final: number; referenceYear: number } | null;
+  lunarLifePath: (LifePathValue & {
     lunarMonth: number;
     lunarDay: number;
     lunarYear: number;
-  };
+  }) | null;
   expression: { raw: number; final: number };
   soulUrge: { raw: number; final: number };
   personality: { raw: number; final: number };
-  birthDay: { raw: number; final: number };
-  maturity: { raw: number; final: number };
-  dayOfYear: { raw: number; final: number };
-  yearEnergy: { raw: number; final: number };
+  birthDay: { raw: number; final: number } | null;
+  maturity: { raw: number; final: number } | null;
+  dayOfYear: { raw: number; final: number } | null;
+  yearEnergy: { raw: number; final: number } | null;
+  pinnacles: {
+    first: PinnacleValue;
+    second: PinnacleValue;
+    third: PinnacleValue;
+    fourth: PinnacleValue;
+    firstSpan: string;
+    secondSpan: string;
+    thirdSpan: string;
+    fourthSpan: string;
+  } | null;
 };
 
 type CardData = {
@@ -125,17 +145,13 @@ type CardData = {
   valueClassName?: string;
 };
 
-type SavedProfileRecord = {
-  displayName: string;
-  normalizedName: string;
-  birthdate: string;
-  firstEnteredAt: string;
-  lastEnteredAt: string;
-};
-
-const PROFILE_STORAGE_KEY = "numcalc-saved-profiles";
 const LIFE_PATH_FORM_STORAGE_KEY = "numcalc-life-path-form";
 const LIFE_PATH_FORM_COOKIE_NAME = "numcalc-life-path-form";
+const DHARMA_SAMPLE_NAMES = ["Nikola Milutinov Tesla", "Albert Einstein", "Marie Curie"];
+const TESLA_SAMPLE_NAME = "NIKOLA MILUTINOV TESLA";
+const SAMPLE_PROFILE_BIRTHDATES: Record<string, string> = {
+  "Nikola Milutinov Tesla": "06/28/1856",
+};
 
 const getCookieValue = (name: string) => {
   if (typeof document === "undefined") {
@@ -162,12 +178,19 @@ const readLifePathFormState = () => {
   try {
     const parsed = JSON.parse(raw) as {
       birthdateInput?: string;
+      committedBirthdateInput?: string;
       fullName?: string;
       committedName?: string;
     };
 
     return {
       birthdateInput: typeof parsed.birthdateInput === "string" ? parsed.birthdateInput : "",
+      committedBirthdateInput:
+        typeof parsed.committedBirthdateInput === "string"
+          ? parsed.committedBirthdateInput
+          : typeof parsed.birthdateInput === "string"
+            ? parsed.birthdateInput
+            : "",
       fullName: typeof parsed.fullName === "string" ? parsed.fullName : "",
       committedName: typeof parsed.committedName === "string" ? parsed.committedName : "",
     };
@@ -176,12 +199,17 @@ const readLifePathFormState = () => {
   }
 };
 
-const writeLifePathFormState = (value: { birthdateInput: string; fullName: string; committedName: string }) => {
+const writeLifePathFormState = (value: {
+  birthdateInput: string;
+  committedBirthdateInput: string;
+  fullName: string;
+  committedName: string;
+}) => {
   if (typeof window === "undefined") {
     return;
   }
 
-  if (!value.birthdateInput && !value.fullName && !value.committedName) {
+  if (!value.birthdateInput && !value.committedBirthdateInput && !value.fullName && !value.committedName) {
     window.localStorage.removeItem(LIFE_PATH_FORM_STORAGE_KEY);
     document.cookie = `${LIFE_PATH_FORM_COOKIE_NAME}=; path=/; max-age=0; samesite=lax`;
     return;
@@ -242,6 +270,14 @@ const formatBirthdateInput = (value: string) => {
   return `${month}/${day}/${year}`;
 };
 
+const formatTodayBirthdate = () => {
+  const today = new Date();
+  const month = String(today.getMonth() + 1).padStart(2, "0");
+  const day = String(today.getDate()).padStart(2, "0");
+  const year = String(today.getFullYear());
+  return `${month}/${day}/${year}`;
+};
+
 const parseBirthdate = (value: string): ParsedDate | null => {
   const match = value.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
   if (!match) return null;
@@ -267,9 +303,9 @@ const parseBirthdate = (value: string): ParsedDate | null => {
 };
 
 const getDayOfYear = (date: Date) => {
-  const start = new Date(date.getFullYear(), 0, 0);
-  const diff = date.getTime() - start.getTime();
-  return Math.floor(diff / 86_400_000);
+  const utcDate = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
+  const utcStart = Date.UTC(date.getFullYear(), 0, 0);
+  return Math.floor((utcDate - utcStart) / 86_400_000);
 };
 
 const CHINESE_MONTH_MAP: Record<string, number> = {
@@ -355,11 +391,58 @@ const buildLifePathValue = (month: number, day: number, year: number): LifePathV
   };
 };
 
+const buildPinnacles = (month: number, day: number, year: number, lifePathFinal: number) => {
+  const monthCore = reduceToSingleDigit(month);
+  const dayCore = reduceToSingleDigit(day);
+  const yearCore = reduceToSingleDigit(digitSum(year));
+
+  const firstOrdinal = month + day;
+  const secondOrdinal = day + digitSum(year);
+  const fourthOrdinal = month + digitSum(year);
+
+  const firstReducedTotal = monthCore + dayCore;
+  const secondReducedTotal = dayCore + yearCore;
+  const thirdOrdinal = firstOrdinal + secondOrdinal;
+  const thirdReducedTotal = firstReducedTotal + secondReducedTotal;
+  const fourthReducedTotal = monthCore + yearCore;
+
+  const firstEndAge = 36 - lifePathFinal;
+  const secondEndAge = firstEndAge + 9;
+  const thirdEndAge = secondEndAge + 9;
+
+  return {
+    first: { ordinal: firstOrdinal, reducedTotal: firstReducedTotal, final: reduceToSingleDigit(firstReducedTotal), label: "1st" },
+    second: { ordinal: secondOrdinal, reducedTotal: secondReducedTotal, final: reduceToSingleDigit(secondReducedTotal), label: "2nd" },
+    third: { ordinal: thirdOrdinal, reducedTotal: thirdReducedTotal, final: reduceToSingleDigit(thirdReducedTotal), label: "3rd" },
+    fourth: { ordinal: fourthOrdinal, reducedTotal: fourthReducedTotal, final: reduceToSingleDigit(fourthReducedTotal), label: "4th" },
+    firstSpan: `0-${firstEndAge}`,
+    secondSpan: `${firstEndAge + 1}-${secondEndAge}`,
+    thirdSpan: `${secondEndAge + 1}-${thirdEndAge}`,
+    fourthSpan: `${thirdEndAge + 1}+`,
+  };
+};
+
 const buildReductionDetail = (raw: number, final: number) =>
   raw === final ? `Final: ${final}` : `Reduced: ${raw} -> ${final}`;
 
 const buildCompoundValue = (raw: number, final: number) =>
   raw === final ? `${final}` : `${raw}/${final}`;
+
+const buildThreeStepValue = (ordinal: number, reducedTotal: number, final: number) => {
+  if (ordinal === reducedTotal && reducedTotal === final) {
+    return `${final}`;
+  }
+
+  if (ordinal === reducedTotal) {
+    return `${reducedTotal}/${final}`;
+  }
+
+  if (reducedTotal === final) {
+    return `${ordinal}/${final}`;
+  }
+
+  return `${ordinal}/${reducedTotal}/${final}`;
+};
 
 const getCompactProfileTitle = (value: number) => getProfileTitle(value).replace(/^The\s+/, "");
 
@@ -379,52 +462,41 @@ const buildLifePathDetail = (month: number, day: number, year: number, ordinal: 
   );
 };
 
-const getProfileTitle = (value: number) => PROFILE_TITLES[value] ?? "Numerology Insight";
-
-const readSavedProfiles = (): Record<string, SavedProfileRecord> => {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  try {
-    const raw = window.localStorage.getItem(PROFILE_STORAGE_KEY);
-    if (!raw) {
-      return {};
-    }
-
-    const parsed = JSON.parse(raw) as Record<string, SavedProfileRecord>;
-    return parsed && typeof parsed === "object" ? parsed : {};
-  } catch {
-    return {};
-  }
-};
-
-const writeSavedProfiles = (profiles: Record<string, SavedProfileRecord>) => {
-  if (typeof window === "undefined") {
-    return;
-  }
-
-  window.localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profiles));
-};
+const getProfileTitle = (value: number) => (PROFILE_TITLES[value] ?? "Numerology Insight").replace(/^The\s+/, "");
 
 type LifePathProps = {
+  prefilledName?: string;
   prefilledBirthdate?: string;
   resetSignal?: number;
+  onSavedEntriesChange?: () => void;
 };
 
-export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: LifePathProps) {
+export default function LifePath({ prefilledName = "", prefilledBirthdate = "", resetSignal = 0, onSavedEntriesChange }: LifePathProps) {
   const [fullName, setFullName] = useState("");
   const [committedName, setCommittedName] = useState("");
   const [birthdateInput, setBirthdateInput] = useState("");
+  const [committedBirthdateInput, setCommittedBirthdateInput] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [saveMessage, setSaveMessage] = useState<string | null>(null);
+  const [merkabahSpinKey, setMerkabahSpinKey] = useState(0);
+  const [merkabahJoltKey, setMerkabahJoltKey] = useState(0);
+  const [showNameGoState, setShowNameGoState] = useState(false);
+  const [isUndoIconExiting, setIsUndoIconExiting] = useState(false);
+  const [isAutoSampleResult, setIsAutoSampleResult] = useState(false);
+  const [profileCardHeight, setProfileCardHeight] = useState<number | null>(null);
   const lastAppliedPrefilledBirthdate = useRef("");
+  const lastAppliedPrefilledName = useRef("");
   const hasLoadedSavedFormState = useRef(false);
+  const profileCardRefs = useRef<Array<HTMLDivElement | null>>([]);
+  const birthdateInputRef = useRef<HTMLInputElement>(null);
+  const fullNameInputRef = useRef<HTMLInputElement>(null);
+  const nameGoTimerRef = useRef<number | null>(null);
 
   useEffect(() => {
     const savedState = readLifePathFormState();
     if (savedState) {
       setBirthdateInput(savedState.birthdateInput);
+      setCommittedBirthdateInput(savedState.committedBirthdateInput);
       setFullName(savedState.fullName);
       setCommittedName(savedState.committedName);
     }
@@ -437,21 +509,31 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
       return;
     }
 
-    writeLifePathFormState({ birthdateInput, fullName, committedName });
-  }, [birthdateInput, committedName, fullName]);
+    writeLifePathFormState({ birthdateInput, committedBirthdateInput, fullName, committedName });
+  }, [birthdateInput, committedBirthdateInput, committedName, fullName]);
 
   useEffect(() => {
     if (resetSignal === 0) {
       return;
     }
 
+    if (nameGoTimerRef.current !== null) {
+      window.clearTimeout(nameGoTimerRef.current);
+      nameGoTimerRef.current = null;
+    }
+
+    lastAppliedPrefilledName.current = "";
     lastAppliedPrefilledBirthdate.current = "";
     setBirthdateInput("");
+    setCommittedBirthdateInput("");
     setFullName("");
     setCommittedName("");
     setSaveMessage(null);
     setShowModal(false);
-    writeLifePathFormState({ birthdateInput: "", fullName: "", committedName: "" });
+    setShowNameGoState(false);
+    setIsUndoIconExiting(false);
+    setIsAutoSampleResult(false);
+    writeLifePathFormState({ birthdateInput: "", committedBirthdateInput: "", fullName: "", committedName: "" });
   }, [resetSignal]);
 
   useEffect(() => {
@@ -469,130 +551,306 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
     }
   }, [birthdateInput, prefilledBirthdate]);
 
-  const result = useMemo<ProfileResult | null>(() => {
-    const normalizedName = cleanName(committedName);
-    const birthdate = parseBirthdate(birthdateInput);
-
-    if (!birthdate) {
-      return null;
+  useEffect(() => {
+    if (!prefilledName || prefilledName === lastAppliedPrefilledName.current) {
+      return;
     }
 
+    lastAppliedPrefilledName.current = prefilledName;
+    setFullName(prefilledName);
+    setCommittedName(prefilledName);
+
+    if (prefilledBirthdate) {
+      setBirthdateInput(prefilledBirthdate);
+      setCommittedBirthdateInput(prefilledBirthdate);
+      lastAppliedPrefilledBirthdate.current = prefilledBirthdate;
+    }
+  }, [prefilledBirthdate, prefilledName]);
+
+  useEffect(() => {
+    if (nameGoTimerRef.current !== null) {
+      window.clearTimeout(nameGoTimerRef.current);
+      nameGoTimerRef.current = null;
+    }
+
+    const trimmedName = fullName.trim();
+    const nameMatchesCommitted = trimmedName.length > 0 && trimmedName === committedName.trim();
+
+    if (!trimmedName || nameMatchesCommitted) {
+      setShowNameGoState(false);
+      return;
+    }
+
+    setShowNameGoState(false);
+    nameGoTimerRef.current = window.setTimeout(() => {
+      setShowNameGoState(true);
+      nameGoTimerRef.current = null;
+    }, 800);
+
+    return () => {
+      if (nameGoTimerRef.current !== null) {
+        window.clearTimeout(nameGoTimerRef.current);
+        nameGoTimerRef.current = null;
+      }
+    };
+  }, [committedName, fullName]);
+
+  const result = useMemo<ProfileResult | null>(() => {
+    const normalizedName = cleanName(committedName);
+    const birthdate = parseBirthdate(committedBirthdateInput);
     const hasName = normalizedName.length > 0;
+    const hasBirthdate = Boolean(birthdate);
+
+    if (!hasName && !hasBirthdate) {
+      return null;
+    }
 
     const expressionRaw = hasName ? sumLetters(normalizedName, () => true) : 0;
     const soulUrgeRaw = hasName ? sumLetters(normalizedName, (character) => VOWELS.has(character)) : 0;
     const personalityRaw = hasName ? sumLetters(normalizedName, (character) => !VOWELS.has(character)) : 0;
-    const birthDayRaw = birthdate.day;
-    const dayOfYearRaw = getDayOfYear(birthdate.date);
-    const yearEnergyRaw = birthdate.year;
     const referenceYear = new Date().getFullYear();
-    const personalYearRaw = birthdate.month + birthdate.day + digitSum(referenceYear);
 
     const expressionFinal = hasName ? reduceToSingleDigit(expressionRaw) : 0;
-    const lifePath = buildLifePathValue(birthdate.month, birthdate.day, birthdate.year);
-    const maturityRaw = hasName ? expressionFinal + lifePath.final : 0;
-    const lunarDate = getLunarDateParts(birthdate.date);
-
-    if (!lunarDate) {
-      return null;
-    }
+    const birthDayRaw = birthdate?.day ?? null;
+    const dayOfYearRaw = birthdate ? getDayOfYear(birthdate.date) : null;
+    const yearEnergyRaw = birthdate?.year ?? null;
+    const personalYearRaw = birthdate ? birthdate.month + birthdate.day + digitSum(referenceYear) : null;
+    const lifePath = birthdate ? buildLifePathValue(birthdate.month, birthdate.day, birthdate.year) : null;
+    const maturityRaw = hasName && lifePath ? expressionFinal + lifePath.final : null;
+    const lunarDate = birthdate ? getLunarDateParts(birthdate.date) : null;
+    const pinnacles = birthdate && lifePath
+      ? buildPinnacles(birthdate.month, birthdate.day, birthdate.year, lifePath.final)
+      : null;
 
     return {
       normalizedName,
       displayName: committedName.trim(),
-      formattedBirthdate: birthdateInput,
+      formattedBirthdate: committedBirthdateInput,
       birthdate,
       hasName,
+      hasBirthdate,
       lifePath,
-      personalYear: {
-        raw: personalYearRaw,
-        final: reduceToCoreDigit(personalYearRaw),
-        referenceYear,
-      },
-      lunarLifePath: {
-        ...buildLifePathValue(lunarDate.month, lunarDate.day, lunarDate.year),
-        lunarMonth: lunarDate.month,
-        lunarDay: lunarDate.day,
-        lunarYear: lunarDate.year,
-      },
+      personalYear: personalYearRaw
+        ? {
+            raw: personalYearRaw,
+            final: reduceToCoreDigit(personalYearRaw),
+            referenceYear,
+          }
+        : null,
+      lunarLifePath: lunarDate
+        ? {
+            ...buildLifePathValue(lunarDate.month, lunarDate.day, lunarDate.year),
+            lunarMonth: lunarDate.month,
+            lunarDay: lunarDate.day,
+            lunarYear: lunarDate.year,
+          }
+        : null,
       expression: { raw: expressionRaw, final: expressionFinal },
       soulUrge: { raw: soulUrgeRaw, final: hasName ? reduceToSingleDigit(soulUrgeRaw) : 0 },
       personality: { raw: personalityRaw, final: hasName ? reduceToSingleDigit(personalityRaw) : 0 },
-      birthDay: { raw: birthDayRaw, final: reduceToCoreDigit(birthDayRaw) },
-      maturity: { raw: maturityRaw, final: hasName ? reduceToSingleDigit(maturityRaw) : 0 },
-      dayOfYear: { raw: dayOfYearRaw, final: reduceToCoreDigit(dayOfYearRaw) },
-      yearEnergy: { raw: digitSum(yearEnergyRaw), final: reduceToCoreDigit(digitSum(yearEnergyRaw)) },
+      birthDay: birthDayRaw ? { raw: birthDayRaw, final: reduceToCoreDigit(birthDayRaw) } : null,
+      maturity: maturityRaw ? { raw: maturityRaw, final: reduceToSingleDigit(maturityRaw) } : null,
+      dayOfYear: dayOfYearRaw ? { raw: dayOfYearRaw, final: reduceToCoreDigit(dayOfYearRaw) } : null,
+      yearEnergy: yearEnergyRaw
+        ? { raw: digitSum(yearEnergyRaw), final: reduceToCoreDigit(digitSum(yearEnergyRaw)) }
+        : null,
+      pinnacles,
     };
-  }, [birthdateInput, committedName]);
+  }, [committedBirthdateInput, committedName]);
 
-  const desc = result ? DESCRIPTIONS[result.lifePath.final] : null;
+  const desc = result?.lifePath ? DESCRIPTIONS[result.lifePath.final] : null;
+
+  const buildPinnaclesCard = (pinnacles: NonNullable<ProfileResult["pinnacles"]>): CardData => ({
+    key: "pinnacles",
+    label: "Life Pinnacles",
+    valueClassName: "text-base font-normal h-full",
+    value: (
+      <div className="flex h-full flex-col justify-center py-2">
+        <div className="grid h-full grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)] grid-rows-2 gap-y-3">
+          {[
+            { ...pinnacles.first, span: pinnacles.firstSpan },
+            { ...pinnacles.second, span: pinnacles.secondSpan },
+            { ...pinnacles.third, span: pinnacles.thirdSpan },
+            { ...pinnacles.fourth, span: pinnacles.fourthSpan },
+          ].map((pinnacle, idx) => (
+            <div
+              key={pinnacle.label}
+              className={`grid justify-items-center ${idx % 2 === 0 ? "col-start-2" : "col-start-4"}`}
+            >
+              <div className="grid w-fit justify-items-center">
+                <div className="mb-0.5 flex w-fit items-baseline gap-1 whitespace-nowrap leading-none">
+                  <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-[#8D7F62]/70">
+                      {pinnacle.label}
+                  </span>
+                  <span className="text-[10px] font-medium tracking-[0.08em] text-gray-500/70">
+                      {pinnacle.span}
+                  </span>
+                </div>
+                <div className="inline-block w-fit text-center text-[22px] font-extrabold leading-none text-gray-900 dark:text-white mystical-title">
+                  {buildThreeStepValue(pinnacle.ordinal, pinnacle.reducedTotal, pinnacle.final)}
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    ),
+  });
 
   const cards: CardData[] = result
     ? [
-        {
-          key: "full-life-path",
-          label: "Full Life Path",
-          value: result.lifePath.display,
-          title: getProfileTitle(result.lifePath.final),
-          detail: buildLifePathDetail(
-            result.birthdate.month,
-            result.birthdate.day,
-            result.birthdate.year,
-            result.lifePath.ordinal,
-            result.lifePath.reducedTotal,
-            result.lifePath.final,
-          ),
-        },
-        {
-          key: "birth-day-year-energy",
-          label: undefined,
-          valueClassName: "text-base font-normal",
-          value: (
-            <div className="grid grid-cols-2 divide-x divide-[#8D7F62]/25 text-center">
-              <div className="px-3">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
-                  Day
-                </p>
-                <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
-                  {buildCompoundValue(result.birthDay.raw, result.birthDay.final)}
-                </div>
-                <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.birthDay.final)}</p>
-                <p className="mt-3 text-sm text-gray-300">{result.birthDay.raw}</p>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                  {result.birthDay.raw === result.birthDay.final
-                    ? `Final: ${result.birthDay.final}`
-                    : `${result.birthDay.raw} → ${result.birthDay.final}`}
-                </p>
-              </div>
-              <div className="px-3">
-                <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
-                  Year
-                </p>
-                <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
-                  {buildCompoundValue(result.yearEnergy.raw, result.yearEnergy.final)}
-                </div>
-                <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.yearEnergy.final)}</p>
-                <p className="mt-3 text-sm text-gray-300">{result.birthdate.year}</p>
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-                  {result.yearEnergy.raw}
-                  {result.yearEnergy.raw === result.yearEnergy.final ? "" : ` → ${result.yearEnergy.final}`}
-                </p>
-              </div>
-            </div>
-          ),
-        },
-        {
-          key: "day-of-year",
-          label: "Day Of Year",
-          value: buildCompoundValue(result.dayOfYear.raw, result.dayOfYear.final),
-          title: getProfileTitle(result.dayOfYear.final),
-          detail: (
-            <>
-              <span className="block">{buildReductionDetail(result.dayOfYear.raw, result.dayOfYear.final)}</span>
-              <span className="mt-1 block">{`Lunar Cycle: ${getMoonPhaseEmoji(result.birthdate.date)}`}</span>
-            </>
-          ),
-        },
+        ...(result.hasBirthdate && !result.hasName && result.lifePath && result.birthdate && result.birthDay && result.dayOfYear && result.yearEnergy && result.personalYear && result.lunarLifePath && result.pinnacles
+          ? [
+              {
+                key: "full-life-path",
+                label: "Full Life Path",
+                value: result.lifePath.display,
+                title: getProfileTitle(result.lifePath.final),
+                detail: buildLifePathDetail(
+                  result.birthdate.month,
+                  result.birthdate.day,
+                  result.birthdate.year,
+                  result.lifePath.ordinal,
+                  result.lifePath.reducedTotal,
+                  result.lifePath.final,
+                ),
+              },
+              {
+                key: "birth-day-year-energy",
+                label: undefined,
+                valueClassName: "text-base font-normal",
+                value: (
+                  <div className="grid grid-cols-2 divide-x divide-[#8D7F62]/25 text-center">
+                    <div className="px-3">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
+                        Day
+                      </p>
+                      <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
+                        {buildCompoundValue(result.birthDay.raw, result.birthDay.final)}
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.birthDay.final)}</p>
+                      <p className="mt-3 text-sm text-gray-300">{result.birthDay.raw}</p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {result.birthDay.raw === result.birthDay.final
+                          ? `Final: ${result.birthDay.final}`
+                          : `${result.birthDay.raw} → ${result.birthDay.final}`}
+                      </p>
+                    </div>
+                    <div className="px-3">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
+                        Year
+                      </p>
+                      <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
+                        {buildCompoundValue(result.yearEnergy.raw, result.yearEnergy.final)}
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.yearEnergy.final)}</p>
+                      <p className="mt-3 text-sm text-gray-300">{result.birthdate.year}</p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {result.yearEnergy.raw}
+                        {result.yearEnergy.raw === result.yearEnergy.final ? "" : ` → ${result.yearEnergy.final}`}
+                      </p>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "day-of-year",
+                label: "Day Of Year",
+                value: buildCompoundValue(result.dayOfYear.raw, result.dayOfYear.final),
+                title: getProfileTitle(result.dayOfYear.final),
+                detail: (
+                  <>
+                    <span className="block">{buildReductionDetail(result.dayOfYear.raw, result.dayOfYear.final)}</span>
+                    <span className="mt-1 block">{`Lunar Cycle: ${getMoonPhaseEmoji(result.birthdate.date)}`}</span>
+                  </>
+                ),
+              },
+              {
+                key: "lunar-life-path",
+                label: "Lunar Life Path",
+                value: result.lunarLifePath.display,
+                title: getProfileTitle(result.lunarLifePath.final),
+                detail: `Month: ${result.lunarLifePath.lunarMonth}, Day: ${result.lunarLifePath.lunarDay}, Year: ${result.lunarLifePath.lunarYear}`,
+              },
+              {
+                ...buildPinnaclesCard(result.pinnacles),
+              },
+              {
+                key: "personal-year",
+                label: "Personal Year",
+                value: buildCompoundValue(result.personalYear.raw, result.personalYear.final),
+                title: getProfileTitle(result.personalYear.final),
+                detail: `${result.birthdate.month}+${result.birthdate.day}+${digitSum(result.personalYear.referenceYear)} = ${result.personalYear.raw} -> ${result.personalYear.final}`,
+              },
+            ]
+          : result.hasBirthdate && result.lifePath && result.birthdate && result.birthDay && result.dayOfYear && result.yearEnergy
+          ? [
+              {
+                key: "full-life-path",
+                label: "Full Life Path",
+                value: result.lifePath.display,
+                title: getProfileTitle(result.lifePath.final),
+                detail: buildLifePathDetail(
+                  result.birthdate.month,
+                  result.birthdate.day,
+                  result.birthdate.year,
+                  result.lifePath.ordinal,
+                  result.lifePath.reducedTotal,
+                  result.lifePath.final,
+                ),
+              },
+              {
+                key: "birth-day-year-energy",
+                label: undefined,
+                valueClassName: "text-base font-normal",
+                value: (
+                  <div className="grid grid-cols-2 divide-x divide-[#8D7F62]/25 text-center">
+                    <div className="px-3">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
+                        Day
+                      </p>
+                      <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
+                        {buildCompoundValue(result.birthDay.raw, result.birthDay.final)}
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.birthDay.final)}</p>
+                      <p className="mt-3 text-sm text-gray-300">{result.birthDay.raw}</p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {result.birthDay.raw === result.birthDay.final
+                          ? `Final: ${result.birthDay.final}`
+                          : `${result.birthDay.raw} → ${result.birthDay.final}`}
+                      </p>
+                    </div>
+                    <div className="px-3">
+                      <p className="text-[11px] uppercase tracking-[0.28em] text-gray-500 dark:text-gray-400">
+                        Year
+                      </p>
+                      <div className="mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none">
+                        {buildCompoundValue(result.yearEnergy.raw, result.yearEnergy.final)}
+                      </div>
+                      <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{getCompactProfileTitle(result.yearEnergy.final)}</p>
+                      <p className="mt-3 text-sm text-gray-300">{result.birthdate.year}</p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+                        {result.yearEnergy.raw}
+                        {result.yearEnergy.raw === result.yearEnergy.final ? "" : ` → ${result.yearEnergy.final}`}
+                      </p>
+                    </div>
+                  </div>
+                ),
+              },
+              {
+                key: "day-of-year",
+                label: "Day Of Year",
+                value: buildCompoundValue(result.dayOfYear.raw, result.dayOfYear.final),
+                title: getProfileTitle(result.dayOfYear.final),
+                detail: (
+                  <>
+                    <span className="block">{buildReductionDetail(result.dayOfYear.raw, result.dayOfYear.final)}</span>
+                    <span className="mt-1 block">{`Lunar Cycle: ${getMoonPhaseEmoji(result.birthdate.date)}`}</span>
+                  </>
+                ),
+              },
+            ]
+          : []),
         ...(result.hasName
           ? [
               {
@@ -601,13 +859,6 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
                 value: result.expression.final,
                 title: getProfileTitle(result.expression.final),
                 detail: buildReductionDetail(result.expression.raw, result.expression.final),
-              },
-              {
-                key: "personal-year",
-                label: "Personal Year",
-                value: buildCompoundValue(result.personalYear.raw, result.personalYear.final),
-                title: getProfileTitle(result.personalYear.final),
-                detail: `${result.birthdate.month}+${result.birthdate.day}+${digitSum(result.personalYear.referenceYear)} = ${result.personalYear.raw} -> ${result.personalYear.final}`,
               },
               {
                 key: "soul-urge",
@@ -623,54 +874,228 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
                 title: getProfileTitle(result.personality.final),
                 detail: buildReductionDetail(result.personality.raw, result.personality.final),
               },
-              {
-                key: "maturity",
-                label: "Maturity",
-                value: result.maturity.final,
-                title: getProfileTitle(result.maturity.final),
-                detail: buildReductionDetail(result.maturity.raw, result.maturity.final),
-              },
-              {
-                key: "lunar-life-path",
-                label: "Lunar Life Path",
-                value: result.lunarLifePath.display,
-                title: getProfileTitle(result.lunarLifePath.final),
-                detail: `Month: ${result.lunarLifePath.lunarMonth}, Day: ${result.lunarLifePath.lunarDay}, Year: ${result.lunarLifePath.lunarYear}`,
-              },
+              ...(result.hasBirthdate && result.pinnacles && result.birthdate
+                ? [
+                    {
+                      ...buildPinnaclesCard(result.pinnacles),
+                    },
+                  ]
+                : []),
+              ...(result.hasBirthdate && result.personalYear && result.birthdate
+                ? [
+                    {
+                      key: "personal-year",
+                      label: "Personal Year",
+                      value: buildCompoundValue(result.personalYear.raw, result.personalYear.final),
+                      title: getProfileTitle(result.personalYear.final),
+                      detail: `${result.birthdate.month}+${result.birthdate.day}+${digitSum(result.personalYear.referenceYear)} = ${result.personalYear.raw} -> ${result.personalYear.final}`,
+                    },
+                  ]
+                : []),
+              ...(result.hasBirthdate && result.maturity
+                ? [
+                    {
+                      key: "maturity",
+                      label: "Maturity",
+                      value: result.maturity.final,
+                      title: getProfileTitle(result.maturity.final),
+                      detail: buildReductionDetail(result.maturity.raw, result.maturity.final),
+                    },
+                  ]
+                : []),
             ]
           : []),
       ]
     : [];
 
-  const handleSaveProfile = () => {
-    const normalizedDraftName = cleanName(fullName);
-    const birthdate = parseBirthdate(birthdateInput);
-
-    if (!birthdate || !normalizedDraftName) {
-      setSaveMessage("Add a full birth name and valid birth date before saving.");
+  useEffect(() => {
+    if (typeof window === "undefined") {
       return;
     }
 
-    setCommittedName(fullName.trim());
+    const syncProfileCardHeight = () => {
+      if (window.innerWidth < 768) {
+        setProfileCardHeight(null);
+        return;
+      }
 
-    const profiles = readSavedProfiles();
-    const now = new Date().toISOString();
-    const existing = profiles[normalizedDraftName];
+      const firstRowCards = profileCardRefs.current.slice(0, Math.min(3, cards.length)).filter(Boolean) as HTMLDivElement[];
 
-    profiles[normalizedDraftName] = {
-      displayName: fullName.trim(),
-      normalizedName: normalizedDraftName,
-      birthdate: birthdateInput,
-      firstEnteredAt: existing?.firstEnteredAt ?? now,
-      lastEnteredAt: now,
+      if (firstRowCards.length === 0) {
+        setProfileCardHeight(null);
+        return;
+      }
+
+      const nextHeight = Math.max(...firstRowCards.map((card) => card.getBoundingClientRect().height));
+      setProfileCardHeight((currentHeight) => (currentHeight === nextHeight ? currentHeight : nextHeight));
     };
 
-    writeSavedProfiles(profiles);
-    setSaveMessage(existing ? "Profile updated in saved records." : "Profile saved to local records.");
+    const animationFrame = window.requestAnimationFrame(syncProfileCardHeight);
+    window.addEventListener("resize", syncProfileCardHeight);
+
+    return () => {
+      window.cancelAnimationFrame(animationFrame);
+      window.removeEventListener("resize", syncProfileCardHeight);
+    };
+  }, [cards]);
+
+  const resetDharmaForm = (focusTarget: "birthdate" | "name" = "birthdate") => {
+    lastAppliedPrefilledBirthdate.current = "";
+    setBirthdateInput("");
+    setCommittedBirthdateInput("");
+    setFullName("");
+    setCommittedName("");
+    setSaveMessage(null);
+    setShowModal(false);
+    setShowNameGoState(false);
+    setIsUndoIconExiting(false);
+    writeLifePathFormState({ birthdateInput: "", committedBirthdateInput: "", fullName: "", committedName: "" });
+
+    requestAnimationFrame(() => {
+      if (focusTarget === "name") {
+        fullNameInputRef.current?.focus();
+        return;
+      }
+
+      birthdateInputRef.current?.focus();
+    });
+  };
+
+  const commitBirthdateCalculation = (nextBirthdateInput: string) => {
+    const parsedBirthdate = parseBirthdate(nextBirthdateInput);
+    if (!parsedBirthdate) {
+      setSaveMessage("Add a valid birth date before calculating this side.");
+      birthdateInputRef.current?.focus();
+      return;
+    }
+
+    setBirthdateInput(nextBirthdateInput);
+    setCommittedBirthdateInput(nextBirthdateInput);
+    setSaveMessage(null);
+  };
+
+  const handleBirthdateAction = () => {
+    const trimmedBirthdate = birthdateInput.trim();
+    const hasCommittedBirthdate = committedBirthdateInput.trim().length > 0;
+    const hasDraftBirthdate = trimmedBirthdate.length > 0;
+    const isValidDraftBirthdate = Boolean(parseBirthdate(trimmedBirthdate));
+    const birthdateNeedsCommit = isValidDraftBirthdate && trimmedBirthdate !== committedBirthdateInput.trim();
+
+    if (!hasDraftBirthdate) {
+      const todayBirthdate = formatTodayBirthdate();
+      commitBirthdateCalculation(todayBirthdate);
+
+      requestAnimationFrame(() => {
+        fullNameInputRef.current?.focus();
+      });
+      return;
+    }
+
+    if (birthdateNeedsCommit) {
+      commitBirthdateCalculation(trimmedBirthdate);
+      return;
+    }
+
+    if (hasCommittedBirthdate || hasDraftBirthdate) {
+      resetDharmaForm();
+    }
+  };
+
+  const handleBirthdateEnter = () => {
+    const trimmedBirthdate = birthdateInput.trim();
+    const hasValidBirthdate = Boolean(parseBirthdate(trimmedBirthdate));
+
+    if (hasValidBirthdate && cleanName(fullName)) {
+      setCommittedBirthdateInput(trimmedBirthdate);
+      setCommittedName(fullName.trim());
+      setIsAutoSampleResult(false);
+      setShowNameGoState(false);
+      setSaveMessage(null);
+      setMerkabahSpinKey((currentValue) => currentValue + 1);
+      return;
+    }
+
+    handleBirthdateAction();
+  };
+
+  const resetNameCalculation = () => {
+    setFullName("");
+    setCommittedName("");
+    setSaveMessage(null);
+    setShowNameGoState(false);
+    setIsUndoIconExiting(false);
+    setIsAutoSampleResult(false);
+
+    requestAnimationFrame(() => {
+      fullNameInputRef.current?.focus();
+    });
+  };
+
+  const handleSaveProfile = () => {
+    if (
+      !isAutoSampleResult &&
+      committedName.trim() &&
+      committedName.trim() === fullName.trim() &&
+      committedBirthdateInput.trim() === birthdateInput.trim()
+    ) {
+      resetNameCalculation();
+      return;
+    }
+
+    const normalizedDraftName = cleanName(fullName);
+    const birthdate = parseBirthdate(birthdateInput);
+    const trimmedFullName = fullName.trim();
+    const trimmedBirthdate = birthdateInput.trim();
+
+    if (!normalizedDraftName) {
+      const currentIndex = DHARMA_SAMPLE_NAMES.indexOf(fullName.trim());
+      const nextName = DHARMA_SAMPLE_NAMES[(currentIndex + 1) % DHARMA_SAMPLE_NAMES.length];
+      const sampleBirthdate = SAMPLE_PROFILE_BIRTHDATES[nextName] ?? "";
+
+      setFullName(nextName);
+      setBirthdateInput(sampleBirthdate);
+      setCommittedBirthdateInput(sampleBirthdate);
+      setCommittedName(nextName);
+      setIsAutoSampleResult(true);
+      setShowNameGoState(false);
+      setSaveMessage(null);
+      setMerkabahSpinKey((currentValue) => currentValue + 1);
+      return;
+    }
+
+    setCommittedBirthdateInput(birthdate ? trimmedBirthdate : "");
+    setCommittedName(trimmedFullName);
+    setIsAutoSampleResult(false);
+    setShowNameGoState(false);
+    setIsUndoIconExiting(true);
+    window.setTimeout(() => {
+      setIsUndoIconExiting(false);
+    }, 220);
+    if (birthdate) {
+      upsertSavedEntry("dharma", trimmedFullName, normalizedDraftName, trimmedBirthdate);
+      onSavedEntriesChange?.();
+      setSaveMessage("Saved to your Profiles.");
+    } else {
+      setSaveMessage(null);
+    }
+    setMerkabahSpinKey((currentValue) => currentValue + 1);
   };
 
   const inputClass =
-    "w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0B0B0B] text-gray-900 dark:text-gray-100 outline-none focus:border-green-400/40 focus:shadow-[0_0_8px_rgba(0,255,0,0.20)] transition-all text-sm font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500";
+    "accent-focus-input w-full px-4 py-3 rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-[#0B0B0B] text-gray-900 dark:text-gray-100 outline-none transition-all text-sm font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500";
+
+  const trimmedBirthdateInput = birthdateInput.trim();
+  const hasCommittedBirthdateDetails = committedBirthdateInput.trim().length > 0;
+  const birthdateNeedsCommit =
+    trimmedBirthdateInput.length > 0 &&
+    Boolean(parseBirthdate(trimmedBirthdateInput)) &&
+    trimmedBirthdateInput !== committedBirthdateInput.trim();
+
+  const hasCommittedNameDetails =
+    !isAutoSampleResult &&
+    committedName.trim().length > 0 &&
+    committedName.trim() === fullName.trim() &&
+    committedBirthdateInput.trim() === birthdateInput.trim();
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -680,14 +1105,60 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               Birth Date MM/DD/YYYY
             </label>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={birthdateInput}
-              onChange={(event) => setBirthdateInput(formatBirthdateInput(event.target.value))}
-              placeholder="MM/DD/YYYY"
-              className={inputClass}
-            />
+            <div className="flex gap-3">
+              <input
+                ref={birthdateInputRef}
+                type="text"
+                inputMode="numeric"
+                value={birthdateInput}
+                onChange={(event) => setBirthdateInput(formatBirthdateInput(event.target.value))}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.preventDefault();
+                    handleBirthdateEnter();
+                  }
+                }}
+                placeholder="MM/DD/YYYY"
+                className={inputClass}
+              />
+              <button
+                type="button"
+                onClick={handleBirthdateAction}
+                className="ui-square-button relative rounded-md border border-[#8D7F62] bg-transparent text-white transition-colors hover:bg-[#1a160e]"
+                title={birthdateNeedsCommit ? "Calculate Birth Date Details" : hasCommittedBirthdateDetails || trimmedBirthdateInput ? "Reset Dharma Form" : "Use Today\'s Date"}
+                aria-label={birthdateNeedsCommit ? "Calculate Birth Date Details" : hasCommittedBirthdateDetails || trimmedBirthdateInput ? "Reset Dharma Form" : "Use Today\'s Date"}
+              >
+                <span className="relative mx-auto flex h-5 w-5 items-center justify-center">
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${!birthdateNeedsCommit && !hasCommittedBirthdateDetails && !trimmedBirthdateInput ? "opacity-100" : "opacity-0 scale-75"}`}
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10Z" />
+                      <circle cx="12" cy="11" r="2.5" />
+                    </svg>
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${birthdateNeedsCommit ? "refresh-icon-enter opacity-100" : "refresh-icon-exit"}`}
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m7 6 6 6-6 6" />
+                      <path d="m13 6 6 6-6 6" />
+                    </svg>
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${!birthdateNeedsCommit && (hasCommittedBirthdateDetails || trimmedBirthdateInput) ? "opacity-100" : "opacity-0 scale-75"}`}
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 6h18" />
+                      <path d="M8 6V4h8v2" />
+                      <path d="M6 6l1 14h10l1-14" />
+                      <path d="M10 10v6" />
+                      <path d="M14 10v6" />
+                    </svg>
+                  </span>
+                </span>
+              </button>
+            </div>
           </div>
 
           <div>
@@ -696,16 +1167,23 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
             </label>
             <div className="flex gap-3">
               <input
+                ref={fullNameInputRef}
                 type="text"
                 value={fullName}
                 onChange={(event) => {
+                  setIsAutoSampleResult(false);
+
+                  if (event.target.value.length > fullName.length) {
+                    setMerkabahJoltKey((currentValue) => currentValue + 1);
+                  }
+
                   setFullName(event.target.value);
                   if (saveMessage) {
                     setSaveMessage(null);
                   }
                 }}
                 onKeyDown={(event) => {
-                  if (event.key === "Enter" && parseBirthdate(birthdateInput) && cleanName(fullName)) {
+                  if (event.key === "Enter" && cleanName(fullName)) {
                     event.preventDefault();
                     handleSaveProfile();
                   }
@@ -716,10 +1194,33 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
               <button
                 type="button"
                 onClick={handleSaveProfile}
-                disabled={!parseBirthdate(birthdateInput) || !cleanName(fullName)}
-                className="btn-accent min-w-20 rounded-md px-4 py-3 text-sm font-medium transition-colors disabled:cursor-not-allowed disabled:border-gray-700 disabled:bg-[#111111] disabled:text-gray-500"
+                className="ui-square-button relative overflow-hidden rounded-md border border-[#8D7F62] bg-[#0B0B0B] text-white btn-hover-subtle"
+                title={hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
+                aria-label={hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
               >
-                GO
+                <span className="relative flex h-6 w-10 items-center justify-center">
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${!hasCommittedNameDetails && !showNameGoState ? "opacity-100" : "opacity-0 scale-75"}`}
+                  >
+                    <MerkabahIcon3D spinKey={merkabahSpinKey} joltKey={merkabahJoltKey} className="h-6 w-6" />
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${showNameGoState ? "refresh-icon-enter opacity-100" : hasCommittedNameDetails ? "opacity-0 scale-75" : "refresh-icon-exit"}`}
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="m7 6 6 6-6 6" />
+                      <path d="m13 6 6 6-6 6" />
+                    </svg>
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${hasCommittedNameDetails ? `opacity-100 ${isUndoIconExiting ? "refresh-icon-enter" : ""}` : showNameGoState ? "opacity-0 scale-75" : "refresh-icon-exit"}`}
+                  >
+                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 7 4 12l5 5" />
+                      <path d="M5 12h8a6 6 0 0 1 6 6" />
+                    </svg>
+                  </span>
+                </span>
               </button>
             </div>
           </div>
@@ -727,15 +1228,24 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
 
         <div className="mt-6 rounded-lg border border-[#8D7F62]/30 bg-gray-50 dark:bg-[#0B0B0B] p-4 text-sm text-gray-500 dark:text-gray-400">
           {result && (
-            <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-              <p>
-                Birthdate:{" "}
-                <span className="font-semibold text-gray-900 dark:text-white">{result.formattedBirthdate}</span>
-              </p>
-              {result.hasName && (
-                <p>
+            <div className="flex flex-col gap-2">
+              <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+                {result.hasBirthdate && (
+                  <p>
+                  Birthdate:{" "}
+                  <span className="font-semibold text-gray-900 dark:text-white">{result.formattedBirthdate}</span>
+                  </p>
+                )}
+                {result.hasName && (
+                  <p>
                   Full Birth Name:{" "}
                   <span className="font-semibold text-gray-900 dark:text-white">{result.displayName}</span>
+                  </p>
+                )}
+              </div>
+              {result.normalizedName === TESLA_SAMPLE_NAME && (
+                <p className="text-xs leading-relaxed text-[#8D7F62]">
+                  Historical note: Tesla is often listed as July 10, 1856 because that is the Gregorian conversion, but his recorded birth date was June 28, 1856 on the Julian calendar. This sample uses his full birth name, Nikola Milutinov Tesla, with the original Julian-calendar date.
                 </p>
               )}
             </div>
@@ -755,14 +1265,22 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
         <div className="space-y-4">
           <div className="text-center">
             <p className="text-xs tracking-[0.35em] uppercase text-gray-500 dark:text-gray-400">
-              {result.hasName ? "Complete Numerology Profile" : "LIFE PATH ENERGIES"}
+              {result.hasName && result.hasBirthdate
+                ? "Complete Numerology Profile"
+                : result.hasName
+                  ? "Birth Name Energies"
+                  : "LIFE PATH ENERGIES"}
             </p>
           </div>
 
           <div className="grid gap-4 md:grid-cols-3 items-stretch justify-center">
-            {cards.map((card) => (
+            {cards.map((card, index) => (
               <div
                 key={card.key}
+                ref={(element) => {
+                  profileCardRefs.current[index] = element;
+                }}
+                style={profileCardHeight ? { height: `${profileCardHeight}px` } : undefined}
                 className="mx-auto flex h-full w-full max-w-sm flex-col rounded-lg border border-[#8D7F62]/40 bg-white dark:bg-[#0B0B0B] p-5 text-center shadow-lg"
               >
                 {card.label && (
@@ -770,16 +1288,21 @@ export default function LifePath({ prefilledBirthdate = "", resetSignal = 0 }: L
                     {card.label}
                   </p>
                 )}
-                <div className={card.valueClassName ?? "mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none"}>
-                  {card.value}
+                <div className="flex flex-1 flex-col justify-center w-full">
+                  {card.label && (
+                    <div className="sr-only">{card.label}</div>
+                  )}
+                  <div className={card.valueClassName ?? "mt-4 text-4xl font-extrabold text-gray-900 dark:text-white mystical-title leading-none"}>
+                    {card.value}
+                  </div>
+                  {card.title && <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{card.title}</p>}
+                  {card.detail && <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{card.detail}</div>}
+                  {card.note && (
+                    <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-500">
+                      {card.note}
+                    </p>
+                  )}
                 </div>
-                {card.title && <p className="mt-4 text-sm font-semibold text-[#8D7F62]">{card.title}</p>}
-                {card.detail && <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{card.detail}</div>}
-                {card.note && (
-                  <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-gray-500 dark:text-gray-500">
-                    {card.note}
-                  </p>
-                )}
               </div>
             ))}
           </div>

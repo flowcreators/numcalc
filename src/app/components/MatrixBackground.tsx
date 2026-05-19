@@ -2,11 +2,19 @@
 
 import { useEffect, useRef } from 'react';
 
-export default function MatrixBackground() {
+type MatrixBackgroundProps = {
+  enabled: boolean;
+  accentRgb: string;
+  backgroundHex: string;
+};
+
+export default function MatrixBackground({ enabled, accentRgb, backgroundHex }: MatrixBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
+    if (!enabled) return;
+
     const canvas = canvasRef.current;
     if (!canvas) return;
 
@@ -25,7 +33,7 @@ export default function MatrixBackground() {
 
     const animate = () => {
       const t = (Date.now() - startTime) / 1000; // Time in seconds
-      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
+      ctx.fillStyle = 'rgba(11, 11, 11, 0.1)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Scale factors for x and y to create a denser effect
@@ -42,7 +50,7 @@ export default function MatrixBackground() {
           
           if (intensity > 0.05) { // Lower threshold for more visible points
             const alpha = intensity * 0.11; // Apply 11% opacity to the points
-            ctx.fillStyle = `rgba(0, 255, 0, ${alpha})`;
+            ctx.fillStyle = `rgba(${accentRgb}, ${alpha})`;
             ctx.fillRect(x, y, 3, 3); // Slightly larger points
           }
         }
@@ -59,17 +67,21 @@ export default function MatrixBackground() {
         cancelAnimationFrame(animationRef.current);
       }
     };
-  }, []);
+  }, [accentRgb, enabled]);
 
   return (
     <div className="fixed inset-0 -z-10">
-      <canvas
-        ref={canvasRef}
-        className="w-full h-full"
-        style={{
-          background: 'black'
-        }}
-      />
+      {enabled ? (
+        <canvas
+          ref={canvasRef}
+          className="w-full h-full"
+          style={{
+            background: backgroundHex
+          }}
+        />
+      ) : (
+        <div className="h-full w-full" style={{ background: backgroundHex }} />
+      )}
     </div>
   );
 }

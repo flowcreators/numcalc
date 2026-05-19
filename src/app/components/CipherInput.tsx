@@ -89,7 +89,7 @@ export default function CipherInput({
         maxLength={maxLength}
         inputMode={inputMode}
         className={className}
-        style={{ color: "transparent", caretColor: "rgb(74 222 128)" }}
+        style={{ color: "transparent", caretColor: "var(--theme-accent)" }}
         autoComplete="off"
         spellCheck={false}
       />
@@ -103,7 +103,7 @@ export default function CipherInput({
             {placeholder}
           </span>
         ) : (
-          <span className={`text-green-400 font-mono tracking-wide ${textSizeClass}`}>
+          <span className={`font-mono tracking-wide ${textSizeClass}`} style={{ color: "var(--theme-accent)" }}>
             {display}
           </span>
         )}

@@ -442,11 +442,11 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
                 onClick={goToToday}
                 className="btn-accent px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center focus:outline-none leading-none"
               >
-                RETURN TODAY
+                NOW ☉
               </button>
             ) : (
               <div className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-[#0B0B0B] text-gray-400 dark:text-gray-600 text-[10px] font-black inter-caps tracking-widest border border-gray-200 dark:border-gray-800 leading-none">
-                TODAY
+                NOW ☉
               </div>
             )}
             <button
@@ -555,7 +555,7 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-green-600 bg-[#0B0B0B]" />
-          Today
+          NOW ☉
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-[#8D7F62] bg-[#1a160e]" />
