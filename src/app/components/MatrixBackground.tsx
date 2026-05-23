@@ -33,7 +33,7 @@ export default function MatrixBackground({ enabled, accentRgb, backgroundHex }: 
 
     const animate = () => {
       const t = (Date.now() - startTime) / 1000; // Time in seconds
-      ctx.fillStyle = 'rgba(11, 11, 11, 0.1)';
+      ctx.fillStyle = 'rgba(0, 0, 0, 0.1)';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       // Scale factors for x and y to create a denser effect

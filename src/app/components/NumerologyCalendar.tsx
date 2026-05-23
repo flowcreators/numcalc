@@ -363,12 +363,16 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
                     isAdjacentMonth
                       ? "bg-transparent text-gray-400/30 dark:text-gray-600/40 border border-gray-200/50 dark:border-gray-800/50"
                       : isT
-                        ? "ring-1 md:ring-2 ring-green-600 ring-offset-1 md:ring-offset-2 ring-offset-[#171717] bg-[#0B0B0B] text-green-300"
+                        ? "ring-1 md:ring-2 ring-offset-1 md:ring-offset-2 ring-offset-[#171717] bg-[#0B0B0B]"
                         : isSel
                           ? "ring-1 md:ring-2 ring-[#8D7F62] bg-[#1a160e] text-[#8D7F62] font-bold"
                           : "bg-gray-100 dark:bg-[#0B0B0B] text-gray-800 dark:text-gray-200"
                   }
                 `}
+                style={isT && !isAdjacentMonth ? ({
+                  color: "var(--theme-accent)",
+                  ["--tw-ring-color" as string]: "var(--theme-accent)",
+                } as React.CSSProperties) : undefined}
               >
                 <span>{day}</span>
 
@@ -440,21 +444,48 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
             {(!same(selectedDate, today) || viewMonth !== today.getMonth() || viewYear !== today.getFullYear()) ? (
               <button
                 onClick={goToToday}
-                className="btn-accent px-6 py-2 rounded-xl text-xs font-bold transition-all flex items-center focus:outline-none leading-none"
+                className="btn-accent ui-square-button rounded-xl text-xs font-bold transition-all flex items-center justify-center focus:outline-none leading-none"
+                title="Today"
+                aria-label="Today"
               >
-                NOW ☉
+                <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M12 21s-6-4.35-6-10a6 6 0 1 1 12 0c0 5.65-6 10-6 10Z" />
+                  <circle cx="12" cy="11" r="2.2" />
+                </svg>
               </button>
             ) : (
-              <div className="px-6 py-2 rounded-xl bg-gray-100 dark:bg-[#0B0B0B] text-gray-400 dark:text-gray-600 text-[10px] font-black inter-caps tracking-widest border border-gray-200 dark:border-gray-800 leading-none">
-                NOW ☉
+              <div
+                className="ui-square-button rounded-xl bg-gray-100 dark:bg-[#0B0B0B] leading-none flex items-center justify-center"
+              >
+                <svg
+                  className="h-5 w-5"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  aria-hidden="true"
+                  style={{
+                    color: "#ffffff",
+                    filter: "drop-shadow(0 0 6px color-mix(in srgb, var(--theme-accent) 52%, transparent))",
+                  }}
+                >
+                  <circle cx="12" cy="12" r="7" />
+                  <circle cx="12" cy="12" r="1.8" fill="currentColor" stroke="none" />
+                </svg>
               </div>
             )}
             <button
               onClick={onSendTodayToLifePath}
-              className="px-4 py-2 rounded-xl border border-[#8D7F62] text-[#8D7F62] hover:bg-[#1a160e] text-xs font-bold transition-all flex items-center gap-2 focus:outline-none whitespace-nowrap leading-none"
+              className="ui-square-button relative overflow-hidden rounded-xl border border-[#8D7F62] bg-[#0B0B0B] text-white btn-hover-subtle transition-all flex items-center justify-center focus:outline-none"
+              title="Open Destiny"
+              aria-label="Open Destiny"
             >
-              GO DEEPER
-              <span aria-hidden="true">→</span>
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="m7 6 6 6-6 6" />
+                <path d="m13 6 6 6-6 6" />
+              </svg>
             </button>
           </div>
         </div>
@@ -554,8 +585,8 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
       {/* ---------- Legend ------------------------------------------ */}
       <div className="flex flex-wrap items-center justify-center gap-x-6 gap-y-2 text-sm text-gray-500 dark:text-gray-400">
         <span className="flex items-center gap-1.5">
-          <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-green-600 bg-[#0B0B0B]" />
-          NOW ☉
+          <span className="inline-block w-3 h-3 rounded-sm ring-2 bg-[#0B0B0B]" style={{ ["--tw-ring-color" as string]: "var(--theme-accent)" } as React.CSSProperties} />
+          Today
         </span>
         <span className="flex items-center gap-1.5">
           <span className="inline-block w-3 h-3 rounded-sm ring-2 ring-[#8D7F62] bg-[#1a160e]" />

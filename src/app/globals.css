@@ -4,7 +4,7 @@
 @custom-variant dark (&:where(.dark, .dark *));
 
 :root {
-  --background: #0b0b0b;
+  --background: #000000;
   --foreground: #ededed;
   --theme-accent: #00ff00;
   --theme-accent-rgb: 0, 255, 0;

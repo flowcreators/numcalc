@@ -469,9 +469,10 @@ type LifePathProps = {
   prefilledBirthdate?: string;
   resetSignal?: number;
   onSavedEntriesChange?: () => void;
+  onOpenProfiles?: () => void;
 };
 
-export default function LifePath({ prefilledName = "", prefilledBirthdate = "", resetSignal = 0, onSavedEntriesChange }: LifePathProps) {
+export default function LifePath({ prefilledName = "", prefilledBirthdate = "", resetSignal = 0, onSavedEntriesChange, onOpenProfiles }: LifePathProps) {
   const [fullName, setFullName] = useState("");
   const [committedName, setCommittedName] = useState("");
   const [birthdateInput, setBirthdateInput] = useState("");
@@ -940,7 +941,7 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
   }, [cards]);
 
   const resetDharmaForm = (focusTarget: "birthdate" | "name" = "birthdate") => {
-    lastAppliedPrefilledBirthdate.current = "";
+    lastAppliedPrefilledBirthdate.current = prefilledBirthdate;
     setBirthdateInput("");
     setCommittedBirthdateInput("");
     setFullName("");
@@ -1032,6 +1033,11 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
   };
 
   const handleSaveProfile = () => {
+    if (hasCommittedBirthdateDetails && hasCommittedNameDetails) {
+      resetDharmaForm();
+      return;
+    }
+
     if (
       !isAutoSampleResult &&
       committedName.trim() &&
@@ -1096,6 +1102,15 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
     committedName.trim().length > 0 &&
     committedName.trim() === fullName.trim() &&
     committedBirthdateInput.trim() === birthdateInput.trim();
+  const showNameHistoryState = hasCommittedBirthdateDetails && hasCommittedNameDetails;
+  const todayBirthdate = formatTodayBirthdate();
+  const showDefaultTodaySummary = Boolean(
+    result &&
+      !result.hasName &&
+      result.hasBirthdate &&
+      result.formattedBirthdate === todayBirthdate &&
+      prefilledBirthdate === todayBirthdate
+  );
 
   return (
     <div className="max-w-6xl mx-auto space-y-6">
@@ -1124,7 +1139,7 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
               <button
                 type="button"
                 onClick={handleBirthdateAction}
-                className="ui-square-button relative rounded-md border border-[#8D7F62] bg-transparent text-white transition-colors hover:bg-[#1a160e]"
+                className="ui-square-button relative overflow-hidden rounded-md border border-[#8D7F62] bg-[#0B0B0B] text-white btn-hover-subtle"
                 title={birthdateNeedsCommit ? "Calculate Birth Date Details" : hasCommittedBirthdateDetails || trimmedBirthdateInput ? "Reset Dharma Form" : "Use Today\'s Date"}
                 aria-label={birthdateNeedsCommit ? "Calculate Birth Date Details" : hasCommittedBirthdateDetails || trimmedBirthdateInput ? "Reset Dharma Form" : "Use Today\'s Date"}
               >
@@ -1146,7 +1161,7 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
                     </svg>
                   </span>
                   <span
-                    className={`absolute inset-0 flex items-center justify-center ${!birthdateNeedsCommit && (hasCommittedBirthdateDetails || trimmedBirthdateInput) ? "opacity-100" : "opacity-0 scale-75"}`}
+                    className={`absolute inset-0 flex items-center justify-center ${!birthdateNeedsCommit && (hasCommittedBirthdateDetails || trimmedBirthdateInput) && !showNameHistoryState ? "opacity-100" : "opacity-0 scale-75"}`}
                   >
                     <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M3 6h18" />
@@ -1155,6 +1170,11 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
                       <path d="M10 10v6" />
                       <path d="M14 10v6" />
                     </svg>
+                  </span>
+                  <span
+                    className={`absolute inset-0 flex items-center justify-center ${showNameHistoryState ? "opacity-100" : "opacity-0 scale-75"}`}
+                  >
+                    <MerkabahIcon3D spinKey={0} joltKey={0} className="h-5 w-5" />
                   </span>
                 </span>
               </button>
@@ -1195,8 +1215,8 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
                 type="button"
                 onClick={handleSaveProfile}
                 className="ui-square-button relative overflow-hidden rounded-md border border-[#8D7F62] bg-[#0B0B0B] text-white btn-hover-subtle"
-                title={hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
-                aria-label={hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
+                title={showNameHistoryState ? "Open Saved Profiles" : hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
+                aria-label={showNameHistoryState ? "Open Saved Profiles" : hasCommittedNameDetails ? "Reset Birth Name Calculation" : showNameGoState ? "Move Forward" : "Prepare Dharma Chart"}
               >
                 <span className="relative flex h-6 w-10 items-center justify-center">
                   <span
@@ -1215,10 +1235,20 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
                   <span
                     className={`absolute inset-0 flex items-center justify-center ${hasCommittedNameDetails ? `opacity-100 ${isUndoIconExiting ? "refresh-icon-enter" : ""}` : showNameGoState ? "opacity-0 scale-75" : "refresh-icon-exit"}`}
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M9 7 4 12l5 5" />
-                      <path d="M5 12h8a6 6 0 0 1 6 6" />
-                    </svg>
+                    {showNameHistoryState ? (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M3 6h18" />
+                        <path d="M8 6V4h8v2" />
+                        <path d="M6 6l1 14h10l1-14" />
+                        <path d="M10 10v6" />
+                        <path d="M14 10v6" />
+                      </svg>
+                    ) : (
+                      <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M9 7 4 12l5 5" />
+                        <path d="M5 12h8a6 6 0 0 1 6 6" />
+                      </svg>
+                    )}
                   </span>
                 </span>
               </button>
@@ -1232,14 +1262,31 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
                 {result.hasBirthdate && (
                   <p>
-                  Birthdate:{" "}
+                  {showDefaultTodaySummary ? "Today's Date:" : "Birthdate:"}{" "}
                   <span className="font-semibold text-gray-900 dark:text-white">{result.formattedBirthdate}</span>
                   </p>
                 )}
-                {result.hasName && (
+                {(result.hasName || showDefaultTodaySummary) && (
                   <p>
-                  Full Birth Name:{" "}
-                  <span className="font-semibold text-gray-900 dark:text-white">{result.displayName}</span>
+                  {showDefaultTodaySummary ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        window.location.hash = "#calendar";
+                      }}
+                      className="group transition-colors hover:text-[#8D7F62]"
+                    >
+                      <span>Calendar Page:</span>{" "}
+                      <span className="font-semibold text-gray-900 group-hover:text-[#8D7F62] dark:text-white">
+                        Explore More Dates <span className="text-[#8D7F62] group-hover:text-[#8D7F62]">&gt;&gt;</span>
+                      </span>
+                    </button>
+                  ) : (
+                    <>
+                    Full Birth Name:{" "}
+                    <span className="font-semibold text-gray-900 dark:text-white">{result.displayName}</span>
+                    </>
+                  )}
                   </p>
                 )}
               </div>
