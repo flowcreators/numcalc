@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 
 /* ------------------------------------------------------------------ */
 /*  Helpers                                                           */
@@ -29,14 +29,30 @@ const digitSum = (num: number): number =>
     .split("")
     .reduce((a, d) => a + parseInt(d), 0);
 
+const reduceToCoreDigit = (num: number): number => {
+  let value = num;
+  while (value > 9) {
+    value = digitSum(value);
+  }
+  return value;
+};
+
 /* ---------- Date Energy ------------------------------------------ */
 
 interface DateEnergy {
   fullSumEnergy: number;   // Flat digit total, reduced (Full Sum mode)
+  fullSumCompound: string;
+  cypherReductionLine: string;
   standardEnergy: number; // monthReduced + dayReduced + yearReduced (Simplified Standard)
-  hiddenEnergy: number | null; // Master number found via variations
-  hiddenCalculation: string | null; // The calculation string that led to the hidden energy
+  standardRaw: number;
+  standardCompound: string;
   secondaryEnergy: number;
+  dayCompound: string;
+  monthCompound: string;
+  yearCompound: string;
+  ordinalEnergy: number;
+  ordinalRaw: number;
+  ordinalCalculation: string;
   monthReduced: number;
   dayReduced: number;
   yearReduced: number;
@@ -46,7 +62,7 @@ interface DateEnergy {
   flatDigits: number[];
   isFullSumMaster: boolean;
   isStandardMaster: boolean;
-  isHiddenMaster: boolean;
+  isOrdinalMaster: boolean;
 }
 
 const MASTERS = new Set([11, 22, 33]);
@@ -55,15 +71,21 @@ const MASTERS = new Set([11, 22, 33]);
  * Three parallel energy calculations:
  *
  * Full Sum  — sum all individual digits of MM/DD/YYYY, preserve masters.
- * Standard  — monthReduced + dayReduced + yearReduced (Fully simplified), preserve masters.
- * Hidden    — variations that avoid early reduction to find master numbers.
+ * Primary   — LP-style: monthReduced + dayReduced + yearReduced.
+ * Ordinal   — keeps day non-reduced: monthReduced + day + yearReduced.
  *
- * Secondary energy = the day's own master-preserved value.
+ * Secondary energy = the day's own master-preserved value (Day).
  */
 const calculateDateEnergy = (date: Date): DateEnergy => {
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const year = date.getFullYear();
+
+  const dateDigitsUnpadded = [
+    ...String(month).split('').map(Number),
+    ...String(day).split('').map(Number),
+    ...String(year).split('').map(Number),
+  ];
 
   // 1. Full Sum: Every digit summed flat
   const flatDigits = [
@@ -73,42 +95,38 @@ const calculateDateEnergy = (date: Date): DateEnergy => {
   ];
   const flatSum = flatDigits.reduce((a, d) => a + d, 0);
   const fullSumEnergy = reduceToSingleDigit(flatSum);
+  const fullSumCompound = flatSum !== fullSumEnergy ? `${flatSum}/${fullSumEnergy}` : `${fullSumEnergy}`;
 
   // 2. Standard (Simplified): Reduce components first
   const monthReduced = reduceToSingleDigit(month);
   const dayReduced = MASTERS.has(day) ? day : reduceToSingleDigit(digitSum(day));
   const yearDigitSum = digitSum(year);
   const yearReduced = reduceToSingleDigit(yearDigitSum);
+  const dayCompound = day !== dayReduced ? `${day}/${dayReduced}` : `${dayReduced}`;
+  const monthCompound = month !== monthReduced ? `${month}/${monthReduced}` : `${monthReduced}`;
+  const yearCompound = yearDigitSum !== yearReduced ? `${yearDigitSum}/${yearReduced}` : `${yearReduced}`;
 
   const standardRaw = monthReduced + dayReduced + yearReduced;
   const standardEnergy = reduceToSingleDigit(standardRaw);
 
-  // 3. Hidden Master Search:
-  // Check variations (e.g., raw day or raw year digit sum) to see if a master number appears
-  const variations = [
-    { calc: `${monthReduced} + ${day} + ${yearDigitSum}`, val: monthReduced + day + yearDigitSum },
-    { calc: `${month} + ${day} + ${year}`, val: month + day + year },
-    { calc: `${monthReduced} + ${day} + ${yearReduced}`, val: monthReduced + day + yearReduced },
-    { calc: `${month} + ${dayReduced} + ${yearReduced}`, val: month + dayReduced + yearReduced },
-  ];
-
-  let hiddenEnergy: number | null = null;
-  let hiddenCalculation: string | null = null;
-  for (const v of variations) {
-    const reduced = reduceToSingleDigit(v.val);
-    if (MASTERS.has(reduced)) {
-      hiddenEnergy = reduced;
-      hiddenCalculation = `${v.calc} = ${v.val}`;
-      break;
-    }
-  }
+  const ordinalRaw = monthReduced + day + yearReduced;
+  const ordinalEnergy = reduceToSingleDigit(ordinalRaw);
+  const ordinalCalculation = `${monthReduced} + ${day} + ${yearReduced} = ${ordinalRaw}${ordinalRaw !== ordinalEnergy ? ` -> ${ordinalEnergy}` : ""}`;
 
   return {
     fullSumEnergy,
+    fullSumCompound,
+    cypherReductionLine: `Reduced: ${dateDigitsUnpadded.join("+")} = ${fullSumCompound}`,
     standardEnergy,
-    hiddenEnergy,
-    hiddenCalculation,
+    standardRaw,
+    standardCompound: standardRaw !== standardEnergy ? `${standardRaw}/${standardEnergy}` : `${standardEnergy}`,
     secondaryEnergy: dayReduced,
+    dayCompound,
+    monthCompound,
+    yearCompound,
+    ordinalEnergy,
+    ordinalRaw,
+    ordinalCalculation,
     monthReduced,
     dayReduced,
     yearReduced,
@@ -118,7 +136,7 @@ const calculateDateEnergy = (date: Date): DateEnergy => {
     flatDigits,
     isFullSumMaster: MASTERS.has(fullSumEnergy),
     isStandardMaster: MASTERS.has(standardEnergy),
-    isHiddenMaster: hiddenEnergy !== null,
+    isOrdinalMaster: MASTERS.has(ordinalEnergy),
   };
 };
 
@@ -171,6 +189,13 @@ type NumerologyCalendarProps = {
   onSendTodayToLifePath?: () => void;
 };
 
+type FamousBirthday = {
+  year: number;
+  name: string;
+  description: string;
+  url?: string;
+};
+
 export default function NumerologyCalendar({ onSendTodayToLifePath }: NumerologyCalendarProps) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
@@ -180,7 +205,14 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
   const [selectedDate, setSelectedDate] = useState<Date>(new Date(today));
   const [tooltipMaster, setTooltipMaster] = useState<number | null>(null);
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
+  const [famousBirthdays, setFamousBirthdays] = useState<FamousBirthday[]>([]);
+  const [birthdaysLoading, setBirthdaysLoading] = useState(false);
+  const [birthdaysError, setBirthdaysError] = useState<string | null>(null);
+  const [slotValues, setSlotValues] = useState<[number, number]>([1, 1]);
+  const [slotSpinClasses, setSlotSpinClasses] = useState<[string, string]>(["", ""]);
   const tooltipRef = useRef<HTMLDivElement>(null);
+  const slotIntervalRefs = useRef<Array<ReturnType<typeof setInterval> | null>>([null, null]);
+  const slotValuesRef = useRef<[number, number]>([1, 1]);
 
   /* ----- derived -------------------------------------------------- */
 
@@ -235,6 +267,149 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
     [selectedDate],
   );
 
+  const targetPair = useMemo<[number, number]>(() => {
+    return [
+      reduceToCoreDigit(selectedDate.getMonth() + 1),
+      reduceToCoreDigit(selectedDate.getDate()),
+    ];
+  }, [selectedDate]);
+
+  useEffect(() => {
+    slotValuesRef.current = slotValues;
+  }, [slotValues]);
+
+  useEffect(() => {
+    const intervalRefs = slotIntervalRefs.current;
+
+    targetPair.forEach((target, index) => {
+      if (intervalRefs[index]) {
+        clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
+      }
+
+      const currentValue = slotValuesRef.current[index];
+      const direction = target >= currentValue ? "up" : "down";
+
+      setSlotSpinClasses((prev) => {
+        const next: [string, string] = [...prev] as [string, string];
+        next[index] = direction === "up" ? "spin-up" : "spin-down";
+        return next;
+      });
+
+      let ticks = 0;
+      intervalRefs[index] = setInterval(() => {
+        ticks += 1;
+        setSlotValues((prev) => {
+          const next: [number, number] = [...prev] as [number, number];
+          next[index] = direction === "up"
+            ? (next[index] % 9) + 1
+            : ((next[index] + 7) % 9) + 1;
+          slotValuesRef.current = next;
+          return next;
+        });
+
+        if (ticks >= 10) {
+          clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
+          intervalRefs[index] = null;
+          setSlotValues((prev) => {
+            const next: [number, number] = [...prev] as [number, number];
+            next[index] = target;
+            slotValuesRef.current = next;
+            return next;
+          });
+          setSlotSpinClasses((prev) => {
+            const next: [string, string] = [...prev] as [string, string];
+            next[index] = "";
+            return next;
+          });
+        }
+      }, 55 + index * 12);
+    });
+
+    return () => {
+      intervalRefs.forEach((interval) => {
+        if (interval) {
+          clearInterval(interval);
+        }
+      });
+    };
+  }, [targetPair]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+
+    const fetchBirthdays = async () => {
+      setBirthdaysLoading(true);
+      setBirthdaysError(null);
+
+      const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+      const day = String(selectedDate.getDate()).padStart(2, "0");
+
+      try {
+        const response = await fetch(`https://api.wikimedia.org/feed/v1/wikipedia/en/onthisday/births/${month}/${day}`, {
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        const payload = await response.json() as {
+          births?: Array<{
+            year?: number;
+            text?: string;
+            pages?: Array<{
+              title?: string;
+              content_urls?: {
+                desktop?: {
+                  page?: string;
+                };
+              };
+            }>;
+          }>;
+        };
+
+        const normalized = (payload.births ?? [])
+          .map((entry): FamousBirthday | null => {
+            const text = (entry.text ?? "").trim();
+            const primaryPage = entry.pages?.[0];
+            const pageTitle = primaryPage?.title?.trim();
+            const url = primaryPage?.content_urls?.desktop?.page;
+
+            const derivedName = pageTitle || text.split(",")[0]?.trim();
+            if (!derivedName || !entry.year) {
+              return null;
+            }
+
+            return {
+              year: entry.year,
+              name: derivedName,
+              description: text,
+              url,
+            };
+          })
+          .filter((entry): entry is FamousBirthday => entry !== null)
+          .slice(0, 8);
+
+        setFamousBirthdays(normalized);
+      } catch (error) {
+        if ((error as Error).name === "AbortError") {
+          return;
+        }
+
+        setFamousBirthdays([]);
+        setBirthdaysError("Unable to load famous birthdays right now.");
+      } finally {
+        setBirthdaysLoading(false);
+      }
+    };
+
+    fetchBirthdays();
+
+    return () => {
+      controller.abort();
+    };
+  }, [selectedDate]);
+
   /* ----- helpers -------------------------------------------------- */
 
   const same = (a: Date, b: Date) =>
@@ -267,36 +442,6 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
     setViewYear(t.getFullYear());
     setSelectedDate(t);
   };
-
-  /* ----- breakdown lines ----------------------------------------- */
-
-  const breakdownLines = useMemo(() => {
-    const { flatDigits, flatSum, fullSumEnergy, isFullSumMaster, standardEnergy, isStandardMaster, monthReduced, dayReduced, yearReduced, isHiddenMaster, hiddenCalculation, hiddenEnergy } = selectedEnergy;
-    const masterLabelFull = isFullSumMaster ? ' (Master Number)' : '';
-    const masterLabelStd = isStandardMaster ? ' (Master Number)' : '';
-    const masterLabelHidden = isHiddenMaster ? ' (Master Number)' : '';
-
-    return {
-      fullSum: [
-        `Date Digits: ${flatDigits.join(' + ')}`,
-        `Sum: ${flatSum}`,
-        flatSum !== fullSumEnergy
-          ? `Reduced: ${flatSum} → ${fullSumEnergy}${masterLabelFull}`
-          : `Energy: ${fullSumEnergy}${masterLabelFull}`,
-      ],
-      standard: [
-        `Month: ${monthReduced} + Day: ${dayReduced} + Year: ${yearReduced}`,
-        `Sum: ${monthReduced + dayReduced + yearReduced}`,
-        (monthReduced + dayReduced + yearReduced) !== standardEnergy
-          ? `Reduced: ${monthReduced + dayReduced + yearReduced} → ${standardEnergy}${masterLabelStd}`
-          : `Energy: ${standardEnergy}${masterLabelStd}`,
-      ],
-      hidden: isHiddenMaster ? [
-        `Calculation: ${hiddenCalculation}`,
-        `Energy: ${hiddenEnergy}${masterLabelHidden}`
-      ] : []
-    };
-  }, [selectedEnergy]);
 
   const formatDate = (d: Date) =>
     `${MONTH_NAMES[d.getMonth()]} ${d.getDate()}`;
@@ -377,24 +522,13 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
                 <span>{day}</span>
 
                 {/* Master-number badge */}
-                {(energy.isFullSumMaster || energy.isStandardMaster) && (
+                {(energy.isFullSumMaster || energy.isStandardMaster || energy.isOrdinalMaster) && (
                   <span
                     className="absolute top-0 right-0 text-[8px] md:text-[11px] font-black text-[#0056E1] leading-none bg-black/70 rounded-bl-md px-1 md:px-1.5 py-0.5 cursor-help z-10"
-                    onMouseEnter={(e) => handleMasterBadgeEnter(e, energy.isStandardMaster ? energy.standardEnergy : energy.fullSumEnergy)}
+                    onMouseEnter={(e) => handleMasterBadgeEnter(e, energy.isStandardMaster ? energy.standardEnergy : (energy.isOrdinalMaster ? energy.ordinalEnergy : energy.fullSumEnergy))}
                     onMouseLeave={() => setTooltipMaster(null)}
                   >
-                    {energy.isStandardMaster ? energy.standardEnergy : energy.fullSumEnergy}
-                  </span>
-                )}
-
-                {/* Hidden Master Star */}
-                {energy.isHiddenMaster && (
-                  <span
-                    className="absolute top-0 left-0 text-[8px] md:text-[10px] font-bold text-yellow-300 leading-none bg-black/70 rounded-br-md px-0.5 md:px-1 py-0.5 cursor-help z-10"
-                    onMouseEnter={(e) => handleMasterBadgeEnter(e, energy.hiddenEnergy || 0)}
-                    onMouseLeave={() => setTooltipMaster(null)}
-                  >
-                    ✦
+                    {energy.isStandardMaster ? energy.standardEnergy : (energy.isOrdinalMaster ? energy.ordinalEnergy : energy.fullSumEnergy)}
                   </span>
                 )}
 
@@ -437,6 +571,15 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
             <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 leading-none">
               {formatDate(selectedDate)}
             </h3>
+            <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-gray-300/40 dark:border-gray-600/50 bg-black/30 px-2 py-1">
+              <span className="text-[10px] tracking-wider text-gray-400">PAIR</span>
+              <div className="h-8 w-8 overflow-hidden rounded-sm border border-gray-400/40 bg-[#0B0B0B]">
+                <div className={`tally-slot ${slotSpinClasses[0]}`}>{slotValues[0]}</div>
+              </div>
+              <div className="h-8 w-8 overflow-hidden rounded-sm border border-gray-400/40 bg-[#0B0B0B]">
+                <div className={`tally-slot ${slotSpinClasses[1]}`}>{slotValues[1]}</div>
+              </div>
+            </div>
           </div>
 
           {/* Right: Back to Present Button */}
@@ -492,92 +635,79 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* --- Left: Energy Results --- */}
-          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4 order-last md:order-first">
+          <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
             {/* Primary Energy */}
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Primary Energy</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Primary Energy Cypher Result</p>
               <div className="flex items-center gap-2">
                 <p className="font-bold text-3xl text-black dark:text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
-                  {selectedEnergy.standardEnergy}
+                  {selectedEnergy.fullSumCompound}
                 </p>
-                {selectedEnergy.isHiddenMaster && (
-                  <p className="text-lg font-bold text-gray-400 dark:text-gray-500">
-                    [{selectedEnergy.hiddenEnergy}]
-                  </p>
-                )}
-                {selectedEnergy.isHiddenMaster && (
-                  <span
-                    className="text-yellow-400 text-xl font-bold cursor-help drop-shadow-[0_0_8px_rgba(234,179,8,0.5)]"
-                    onMouseEnter={(e) => handleMasterBadgeEnter(e, selectedEnergy.hiddenEnergy || 0)}
-                    onMouseLeave={() => setTooltipMaster(null)}
-                  >
-                    ✦
-                  </span>
-                )}
               </div>
-              {numberMeaning[selectedEnergy.standardEnergy] && (
-                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{numberMeaning[selectedEnergy.standardEnergy]}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{selectedEnergy.cypherReductionLine}</p>
+              {numberMeaning[selectedEnergy.fullSumEnergy] && (
+                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{numberMeaning[selectedEnergy.fullSumEnergy]}</p>
               )}
             </div>
-            {/* Hidden/Secondary Energy */}
+            {/* Secondary Energy */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Secondary Energy</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Secondary Energies (Day, Month, Year)</p>
               <p className="font-bold text-xl text-black dark:text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                {selectedEnergy.secondaryEnergy}
+                {selectedEnergy.dayCompound} • {selectedEnergy.monthCompound} • {selectedEnergy.yearCompound}
               </p>
               {numberMeaning[selectedEnergy.secondaryEnergy] && (
                 <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.secondaryEnergy]}</p>
               )}
             </div>
-            {/* Hidden Highlight */}
+            {/* Ordinal Calculation */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">Hidden Energy</p>
-              {selectedEnergy.isHiddenMaster ? (
-                <p className="font-bold text-xl text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                  {selectedEnergy.hiddenEnergy}
-                </p>
-              ) : (
-                <p className="text-sm text-gray-500">None Found</p>
-              )}
-              {selectedEnergy.isHiddenMaster && selectedEnergy.hiddenEnergy && numberMeaning[selectedEnergy.hiddenEnergy] && (
-                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.hiddenEnergy]}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">Ordinal Calculation (Non-Reduced Day)</p>
+              <p className="font-bold text-xl text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+                {selectedEnergy.ordinalEnergy}
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{selectedEnergy.ordinalCalculation}</p>
+              {numberMeaning[selectedEnergy.ordinalEnergy] && (
+                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.ordinalEnergy]}</p>
               )}
             </div>
           </div>
 
-          {/* --- Right: Calculation Breakdowns --- */}
+          {/* --- Right: Famous Birthdays --- */}
           <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
-            {/* Full Sum */}
             <div>
-              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Full Sum</h4>
-              <p className="text-[10px] text-gray-500 mb-2">All digits summed flat</p>
-              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                {breakdownLines.fullSum.map((line, i) => (
-                  <p key={i} className={i === breakdownLines.fullSum.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
-                ))}
-              </div>
-            </div>
-            {/* Standard */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Standard</h4>
-              <p className="text-[10px] text-gray-500 mb-2">Month + Day + Year sum</p>
-              <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                {breakdownLines.standard.map((line, i) => (
-                  <p key={i} className={i === breakdownLines.standard.length - 1 ? "font-medium border-t border-gray-200 dark:border-gray-600 pt-1.5 mt-1" : ""}>{line}</p>
-                ))}
-              </div>
-            </div>
-            {/* Hidden Master Calculation */}
-            {breakdownLines.hidden.length > 0 && (
-              <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-                <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Hidden Calculation</h4>
-                <div className="space-y-1 text-sm text-gray-600 dark:text-gray-300">
-                  {breakdownLines.hidden.map((line, i) => (
-                    <p key={i}>{line}</p>
+              <h4 className="font-semibold text-black dark:text-white text-sm mb-0.5 inter-caps tracking-wide">Famous Birthdays</h4>
+              <p className="text-[10px] text-gray-500 mb-2">People born on {formatDate(selectedDate)} (public data source)</p>
+
+              {birthdaysLoading && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading birthdays...</p>
+              )}
+
+              {!birthdaysLoading && birthdaysError && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">{birthdaysError}</p>
+              )}
+
+              {!birthdaysLoading && !birthdaysError && famousBirthdays.length === 0 && (
+                <p className="text-sm text-gray-500 dark:text-gray-400">No birthdays found for this date.</p>
+              )}
+
+              {!birthdaysLoading && !birthdaysError && famousBirthdays.length > 0 && (
+                <div className="space-y-2">
+                  {famousBirthdays.map((person, idx) => (
+                    <div key={`${person.name}-${person.year}-${idx}`} className="border-t border-gray-200 dark:border-gray-700 pt-2 first:border-t-0 first:pt-0">
+                      <p className="text-sm text-white font-medium">
+                        {MONTH_NAMES[selectedDate.getMonth()].slice(0, 3).toUpperCase()} {selectedDate.getDate()}, {person.year} • {person.name}
+                      </p>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">{person.description}</p>
+                      {person.url && (
+                        <a href={person.url} target="_blank" rel="noreferrer" className="text-xs text-[#8D7F62] hover:underline">
+                          Source
+                        </a>
+                      )}
+                    </div>
                   ))}
                 </div>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
@@ -598,10 +728,6 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
             <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-black text-white px-2 py-1 rounded text-[10px] opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">Look for Blue Numbers</span>
           </span>
           Master Number
-        </span>
-        <span className="flex items-center gap-1.5">
-          <span className="text-yellow-400 text-[22px] font-bold bg-black/60 rounded px-1.5 leading-none py-0.5">✦</span>
-          Hidden Energy
         </span>
         <span className="flex items-center gap-1.5">
           <span className="text-[11px]">🌕</span>
@@ -638,6 +764,39 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
           )}
         </div>
       )}
+
+      <style jsx>{`
+        .tally-slot {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          color: #ffffff;
+          font-size: 1.15rem;
+          font-weight: 800;
+          font-family: var(--font-space-grotesk), monospace;
+          text-shadow: 0 0 8px rgba(255, 255, 255, 0.28);
+          transition: transform 120ms linear;
+        }
+
+        .spin-up {
+          animation: tallySpinUp 180ms linear infinite;
+        }
+
+        .spin-down {
+          animation: tallySpinDown 180ms linear infinite;
+        }
+
+        @keyframes tallySpinUp {
+          from { transform: translateY(0); }
+          to { transform: translateY(-4px); }
+        }
+
+        @keyframes tallySpinDown {
+          from { transform: translateY(0); }
+          to { transform: translateY(4px); }
+        }
+      `}</style>
     </div>
   );
 }

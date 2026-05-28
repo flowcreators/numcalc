@@ -237,10 +237,8 @@ export default function Home() {
     return reduced > 9 ? reduceToSingleDigit(reduced) : reduced;
   };
 
-  const reduceOnePass = (num: number): number => {
-    return String(num)
-      .split("")
-      .reduce((acc, digit) => acc + parseInt(digit, 10), 0);
+  const isMasterNumber = (num: number): boolean => {
+    return num === 11 || num === 22 || num === 33;
   };
 
   const getCompoundDisplay = (rawTotal: number, reducedValue: number) => {
@@ -248,12 +246,7 @@ export default function Home() {
       return null;
     }
 
-    let compoundBase = rawTotal;
-    while (compoundBase >= 100) {
-      compoundBase = reduceOnePass(compoundBase);
-    }
-
-    return `${compoundBase}/${reducedValue}`;
+    return `${rawTotal}/${reducedValue}`;
   };
 
   const readCalculatorHistory = (): CalculatorHistoryEntry[] => {
@@ -372,11 +365,21 @@ export default function Home() {
         return reducedWordSum;
       });
 
-      finalResult = useRecursiveReduction 
-        ? reduceToSingleDigit(wordResults.reduce((acc, num) => acc + num, 0))
-        : wordResults.reduce((acc, num) => acc + num, 0);
+      const reducedWordTotal = wordResults.reduce((acc, num) => acc + num, 0);
+      finalResult = useRecursiveReduction
+        ? reduceToSingleDigit(reducedWordTotal)
+        : reducedWordTotal;
 
       if (showDetails) {
+        if (useRecursiveReduction && wordResults.length > 0) {
+          const reducedWordExpression = `${wordResults.join(" + ")} = ${reducedWordTotal}`;
+          const reductionSuffix =
+            reducedWordTotal > 9 && !isMasterNumber(reducedWordTotal)
+              ? `/${finalResult}`
+              : "";
+          newCalculations.push(`Reduced Word Total: ${reducedWordExpression}${reductionSuffix}`);
+        }
+
         const fullReduced = reduceToSingleDigit(fullRawTotal);
         const fullPhraseDisplay = getCompoundDisplay(fullRawTotal, fullReduced) ?? String(fullRawTotal);
         newCalculations.push(`Full Phrase Total: ${fullPhraseDisplay}`);
@@ -408,7 +411,7 @@ export default function Home() {
     setCalculations(newCalculations);
     setResult(finalResult);
     setLastCalculatedInput(text);
-    const historyResultDisplay = useRecursiveReduction
+    const historyResultDisplay = useRecursiveReduction && !calculatePerWord
       ? (getCompoundDisplay(fullRawTotal, finalResult) ?? String(finalResult))
       : String(finalResult);
 
