@@ -184,6 +184,7 @@ export default function Home() {
   const [isThemeMenuOpen, setIsThemeMenuOpen] = useState(false);
   const [input, setInput] = useState("");
   const [result, setResult] = useState<number | null>(null);
+  const [resultDisplay, setResultDisplay] = useState<string | null>(null);
   const [lastCalculatedInput, setLastCalculatedInput] = useState("");
   const [calculations, setCalculations] = useState<string[]>([]);
   const [calculatePerWord, setCalculatePerWord] = useState(true);
@@ -242,6 +243,10 @@ export default function Home() {
   };
 
   const getCompoundDisplay = (rawTotal: number, reducedValue: number) => {
+    if (rawTotal === reducedValue) {
+      return String(reducedValue);
+    }
+
     if (rawTotal < 10) {
       return null;
     }
@@ -410,12 +415,13 @@ export default function Home() {
 
     setCalculations(newCalculations);
     setResult(finalResult);
-    setLastCalculatedInput(text);
-    const historyResultDisplay = useRecursiveReduction && !calculatePerWord
+    const calculatorResultDisplay = useRecursiveReduction
       ? (getCompoundDisplay(fullRawTotal, finalResult) ?? String(finalResult))
       : String(finalResult);
+    setResultDisplay(calculatorResultDisplay);
+    setLastCalculatedInput(text);
 
-    pushCalculatorHistoryEntry(text, finalResult, historyResultDisplay);
+    pushCalculatorHistoryEntry(text, finalResult, calculatorResultDisplay);
   };
 
   const refreshSavedEntries = () => {
@@ -725,6 +731,7 @@ export default function Home() {
   const resetCalculatorInput = (shouldFocus = false) => {
     setInput("");
     setResult(null);
+    setResultDisplay(null);
     setLastCalculatedInput("");
     setCalculations([]);
     setIsCalculatorHistoryOpen(false);
@@ -1388,7 +1395,7 @@ export default function Home() {
                       </button>
                     </div>
                     <div className="text-5xl font-extrabold text-white mystical-title py-2">
-                      {result}
+                      {resultDisplay ?? result}
                     </div>
 
                     <div className="mt-4 text-xs sm:text-sm text-gray-600 dark:text-gray-400">
