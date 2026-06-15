@@ -1,7 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  // Vercel handles optimizations automatically
+  // Produce a standalone server bundle for container deployments (Coolify).
+  output: "standalone",
 };
 
 export default nextConfig;
