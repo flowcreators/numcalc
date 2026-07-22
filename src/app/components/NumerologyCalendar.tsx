@@ -572,7 +572,7 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
               {formatDate(selectedDate)}
             </h3>
             <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-gray-300/40 dark:border-gray-600/50 bg-black/30 px-2 py-1">
-              <span className="text-[10px] tracking-wider text-gray-400">PAIR</span>
+              <span className="text-[10px] tracking-wider text-gray-400">M · D</span>
               <div className="h-8 w-8 overflow-hidden rounded-sm border border-gray-400/40 bg-[#0B0B0B]">
                 <div className={`tally-slot ${slotSpinClasses[0]}`}>{slotValues[0]}</div>
               </div>
@@ -638,7 +638,7 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
           <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
             {/* Primary Energy */}
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Primary Energy Cypher Result</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Compound / Reduced Energies (Life Path)</p>
               <div className="flex items-center gap-2">
                 <p className="font-bold text-3xl text-black dark:text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
                   {selectedEnergy.fullSumCompound}
@@ -655,13 +655,21 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
               <p className="font-bold text-xl text-black dark:text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
                 {selectedEnergy.dayCompound} • {selectedEnergy.monthCompound} • {selectedEnergy.yearCompound}
               </p>
-              {numberMeaning[selectedEnergy.secondaryEnergy] && (
-                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.secondaryEnergy]}</p>
-              )}
+              <div className="space-y-1 mt-1">
+                {numberMeaning[selectedEnergy.dayReduced] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Day:</span> {numberMeaning[selectedEnergy.dayReduced]}</p>
+                )}
+                {numberMeaning[selectedEnergy.monthReduced] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Month:</span> {numberMeaning[selectedEnergy.monthReduced]}</p>
+                )}
+                {numberMeaning[selectedEnergy.yearReduced] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Year:</span> {numberMeaning[selectedEnergy.yearReduced]}</p>
+                )}
+              </div>
             </div>
             {/* Ordinal Calculation */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">Ordinal Calculation (Non-Reduced Day)</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">Ordinal Calculation (No Simplified Numbers)</p>
               <p className="font-bold text-xl text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
                 {selectedEnergy.ordinalEnergy}
               </p>

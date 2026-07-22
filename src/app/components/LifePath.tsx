@@ -997,8 +997,14 @@ export default function LifePath({ prefilledName = "", prefilledBirthdate = "", 
       return;
     }
 
-    if (hasCommittedBirthdate || hasDraftBirthdate) {
-      resetDharmaForm();
+    // Only reset when the draft hasn't changed from the committed value (or there
+    // is no draft). If the user has edited the field to an invalid/incomplete
+    // date we do nothing — they are still typing and a reset would be destructive.
+    const isDraftUnchangedFromCommitted = trimmedBirthdate === committedBirthdateInput.trim();
+    if (!hasDraftBirthdate || isDraftUnchangedFromCommitted) {
+      if (hasCommittedBirthdate || hasDraftBirthdate) {
+        resetDharmaForm();
+      }
     }
   };
 

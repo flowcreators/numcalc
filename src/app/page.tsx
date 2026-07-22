@@ -24,7 +24,7 @@ const CALCULATOR_HISTORY_STORAGE_KEY = "numcalc-calculator-history";
 const MAX_CALCULATOR_HISTORY_ITEMS = 22;
 const MAX_CALCULATOR_HISTORY_MENU_ITEMS = 11;
 const MAX_DHARMA_QUICK_LOADS_PREVIEW = 22;
-const APP_VERSION = "1.3";
+const APP_VERSION = "1.4";
 const VERSION_VISUAL_FIT_RATIO = 0.62;
 const CUSTOM_ACCENT_MAX_RADIUS_RATIO = 0.9;
 const CUSTOM_ACCENT_RESET_HEX = "#ffffff";
@@ -1415,7 +1415,6 @@ export default function Home() {
                         {result === 33 && "Master number - Master teacher and spiritual guidance"}
                       </p>
                     </div>
-                    <p className="mt-3 text-[10px] text-center text-gray-500 dark:text-gray-400">alt + delete to start again</p>
                   </div>
 
                   {showDetails && calculations.length > 0 && (
