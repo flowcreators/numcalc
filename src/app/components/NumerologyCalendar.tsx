@@ -175,6 +175,13 @@ const numberMeaning: Record<number, string> = {
   33: "Master Number 33 — master teacher & spiritual guidance",
 };
 
+function renderMeaning(text: string) {
+  const parts = text.split(" — ");
+  if (parts.length < 2) return <>{text}</>;
+  const second = parts[1].charAt(0).toUpperCase() + parts[1].slice(1);
+  return <>{parts[0]}<br />{second}</>;
+}
+
 const masterTooltip: Record<number, string> = {
   11: "Master Number 11 is the Illuminator. This is a high-vibration day for spiritual insight, intuition, and receiving downloads. Align with: meditation, creative breakthroughs, listening to your inner voice, psychic/intuitive work, and inspired vision.",
   22: "Master Number 22 is the Master Builder. This is a rare day for turning big dreams into tangible reality. Align with: long-term planning, laying foundations, launching projects, strategic decisions, and disciplined focused action.",
@@ -208,11 +215,15 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
   const [famousBirthdays, setFamousBirthdays] = useState<FamousBirthday[]>([]);
   const [birthdaysLoading, setBirthdaysLoading] = useState(false);
   const [birthdaysError, setBirthdaysError] = useState<string | null>(null);
-  const [slotValues, setSlotValues] = useState<[number, number]>([1, 1]);
-  const [slotSpinClasses, setSlotSpinClasses] = useState<[string, string]>(["", ""]);
+  const [primarySlotValues, setPrimarySlotValues] = useState<[number, number, number]>([1, 1, 1]);
+  const [primarySlotSpinClasses, setPrimarySlotSpinClasses] = useState<[string, string, string]>([""  , "", ""]);
+  const [secondarySlotValues, setSecondarySlotValues] = useState<[number, number, number]>([1, 1, 1]);
+  const [secondarySlotSpinClasses, setSecondarySlotSpinClasses] = useState<[string, string, string]>([""  , "", ""]);
   const tooltipRef = useRef<HTMLDivElement>(null);
-  const slotIntervalRefs = useRef<Array<ReturnType<typeof setInterval> | null>>([null, null]);
-  const slotValuesRef = useRef<[number, number]>([1, 1]);
+  const primarySlotIntervalRefs = useRef<Array<ReturnType<typeof setInterval> | null>>([null, null, null]);
+  const primarySlotValuesRef = useRef<[number, number, number]>([1, 1, 1]);
+  const secondarySlotIntervalRefs = useRef<Array<ReturnType<typeof setInterval> | null>>([null, null, null]);
+  const secondarySlotValuesRef = useRef<[number, number, number]>([1, 1, 1]);
 
   /* ----- derived -------------------------------------------------- */
 
@@ -267,72 +278,94 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
     [selectedDate],
   );
 
-  const targetPair = useMemo<[number, number]>(() => {
-    return [
-      reduceToCoreDigit(selectedDate.getMonth() + 1),
-      reduceToCoreDigit(selectedDate.getDate()),
-    ];
-  }, [selectedDate]);
+  const targetPrimary = useMemo<[number, number, number]>(() => {
+    return [selectedEnergy.ordinalRaw, selectedEnergy.flatSum, selectedEnergy.fullSumEnergy];
+  }, [selectedEnergy]);
+
+  const targetSecondary = useMemo<[number, number, number]>(() => {
+    return [selectedEnergy.dayReduced, selectedEnergy.monthReduced, selectedEnergy.yearReduced];
+  }, [selectedEnergy]);
+
+  useEffect(() => { primarySlotValuesRef.current = primarySlotValues; }, [primarySlotValues]);
+  useEffect(() => { secondarySlotValuesRef.current = secondarySlotValues; }, [secondarySlotValues]);
 
   useEffect(() => {
-    slotValuesRef.current = slotValues;
-  }, [slotValues]);
-
-  useEffect(() => {
-    const intervalRefs = slotIntervalRefs.current;
-
-    targetPair.forEach((target, index) => {
-      if (intervalRefs[index]) {
-        clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
-      }
-
-      const currentValue = slotValuesRef.current[index];
-      const direction = target >= currentValue ? "up" : "down";
-
-      setSlotSpinClasses((prev) => {
-        const next: [string, string] = [...prev] as [string, string];
+    const intervalRefs = primarySlotIntervalRefs.current;
+    targetPrimary.forEach((target, index) => {
+      if (intervalRefs[index]) clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
+      const direction = target >= primarySlotValuesRef.current[index] ? "up" : "down";
+      setPrimarySlotSpinClasses((prev) => {
+        const next: [string, string, string] = [...prev] as [string, string, string];
         next[index] = direction === "up" ? "spin-up" : "spin-down";
         return next;
       });
-
       let ticks = 0;
       intervalRefs[index] = setInterval(() => {
         ticks += 1;
-        setSlotValues((prev) => {
-          const next: [number, number] = [...prev] as [number, number];
-          next[index] = direction === "up"
-            ? (next[index] % 9) + 1
-            : ((next[index] + 7) % 9) + 1;
-          slotValuesRef.current = next;
+        setPrimarySlotValues((prev) => {
+          const next: [number, number, number] = [...prev] as [number, number, number];
+          next[index] = direction === "up" ? (next[index] % 9) + 1 : ((next[index] + 7) % 9) + 1;
+          primarySlotValuesRef.current = next;
           return next;
         });
-
         if (ticks >= 10) {
           clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
           intervalRefs[index] = null;
-          setSlotValues((prev) => {
-            const next: [number, number] = [...prev] as [number, number];
+          setPrimarySlotValues((prev) => {
+            const next: [number, number, number] = [...prev] as [number, number, number];
             next[index] = target;
-            slotValuesRef.current = next;
+            primarySlotValuesRef.current = next;
             return next;
           });
-          setSlotSpinClasses((prev) => {
-            const next: [string, string] = [...prev] as [string, string];
+          setPrimarySlotSpinClasses((prev) => {
+            const next: [string, string, string] = [...prev] as [string, string, string];
             next[index] = "";
             return next;
           });
         }
       }, 55 + index * 12);
     });
+    return () => { primarySlotIntervalRefs.current.forEach((iv) => { if (iv) clearInterval(iv); }); };
+  }, [targetPrimary]);
 
-    return () => {
-      intervalRefs.forEach((interval) => {
-        if (interval) {
-          clearInterval(interval);
-        }
+  useEffect(() => {
+    const intervalRefs = secondarySlotIntervalRefs.current;
+    targetSecondary.forEach((target, index) => {
+      if (intervalRefs[index]) clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
+      const direction = target >= secondarySlotValuesRef.current[index] ? "up" : "down";
+      setSecondarySlotSpinClasses((prev) => {
+        const next: [string, string, string] = [...prev] as [string, string, string];
+        next[index] = direction === "up" ? "spin-up" : "spin-down";
+        return next;
       });
-    };
-  }, [targetPair]);
+      let ticks = 0;
+      intervalRefs[index] = setInterval(() => {
+        ticks += 1;
+        setSecondarySlotValues((prev) => {
+          const next: [number, number, number] = [...prev] as [number, number, number];
+          next[index] = direction === "up" ? (next[index] % 9) + 1 : ((next[index] + 7) % 9) + 1;
+          secondarySlotValuesRef.current = next;
+          return next;
+        });
+        if (ticks >= 10) {
+          clearInterval(intervalRefs[index] as ReturnType<typeof setInterval>);
+          intervalRefs[index] = null;
+          setSecondarySlotValues((prev) => {
+            const next: [number, number, number] = [...prev] as [number, number, number];
+            next[index] = target;
+            secondarySlotValuesRef.current = next;
+            return next;
+          });
+          setSecondarySlotSpinClasses((prev) => {
+            const next: [string, string, string] = [...prev] as [string, string, string];
+            next[index] = "";
+            return next;
+          });
+        }
+      }, 68 + index * 14);
+    });
+    return () => { secondarySlotIntervalRefs.current.forEach((iv) => { if (iv) clearInterval(iv); }); };
+  }, [targetSecondary]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -562,22 +595,35 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
           {/* Left: Month and Year */}
           <div className="flex-1">
             <p className="inter-caps text-[24px] font-black text-black dark:text-white tracking-tight leading-none">
-              {MONTH_NAMES[viewMonth].substring(0, 3).toUpperCase()} <span className="text-gray-400 dark:text-gray-500">{viewYear}</span>
+              {MONTH_NAMES[viewMonth].substring(0, 3).toUpperCase()} <span className="text-white">{selectedDate.getDate()}</span> <span className="text-gray-400 dark:text-gray-500">{viewYear}</span>
             </p>
           </div>
 
-          {/* Middle: Full Formatted Date */}
+          {/* Middle: Slots */}
           <div className="flex-1 text-center">
-            <h3 className="text-lg font-bold text-gray-800 dark:text-gray-200 leading-none">
-              {formatDate(selectedDate)}
-            </h3>
-            <div className="mt-2 inline-flex items-center gap-1 rounded-md border border-gray-300/40 dark:border-gray-600/50 bg-black/30 px-2 py-1">
-              <span className="text-[10px] tracking-wider text-gray-400">M · D</span>
-              <div className="h-8 w-8 overflow-hidden rounded-sm border border-gray-400/40 bg-[#0B0B0B]">
-                <div className={`tally-slot ${slotSpinClasses[0]}`}>{slotValues[0]}</div>
+            <div className="mt-2 flex flex-col items-center gap-1">
+              {/* Primary: Ordinal · Compound · Reduced */}
+              <div className="inline-flex items-center gap-1">
+                {(["", "", ""] as const).map((_label, i) => (
+                  <div key={i} className="flex flex-col items-center">
+                    <div
+                      className="h-[29px] w-9 overflow-hidden rounded-sm bg-[#0B0B0B]"
+                      style={{ border: "1px solid var(--theme-accent)" }}
+                    >
+                      <div className={`tally-slot ${primarySlotSpinClasses[i]}`}>{primarySlotValues[i]}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="h-8 w-8 overflow-hidden rounded-sm border border-gray-400/40 bg-[#0B0B0B]">
-                <div className={`tally-slot ${slotSpinClasses[1]}`}>{slotValues[1]}</div>
+              {/* Secondary: Day · Month · Year (40% smaller) */}
+              <div className="inline-flex items-center gap-0.5">
+                {(["D", "M", "Y"] as const).map((_label, i) => (
+                  <div key={i}>
+                    <div className="h-[23px] w-[28px] overflow-hidden rounded-sm border border-gray-500/30 bg-[#0B0B0B]">
+                      <div className={`tally-slot ${secondarySlotSpinClasses[i]}`} style={{ fontSize: "0.82rem" }}>{secondarySlotValues[i]}</div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           </div>
@@ -636,47 +682,56 @@ export default function NumerologyCalendar({ onSendTodayToLifePath }: Numerology
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {/* --- Left: Energy Results --- */}
           <div className="bg-gray-50 dark:bg-[#0B0B0B] rounded-lg p-4 space-y-4">
-            {/* Primary Energy */}
+            {/* Ordinal / Compound / Reduced */}
             <div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Compound / Reduced Energies (Life Path)</p>
-              <div className="flex items-center gap-2">
-                <p className="font-bold text-3xl text-black dark:text-white drop-shadow-[0_0_10px_rgba(255,255,255,0.4)]">
-                  {selectedEnergy.fullSumCompound}
-                </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-2 font-medium">Ordinal / Compound / Reduced (Life Path)</p>
+              <div className="flex items-end gap-3 mb-1">
+                <div className="text-center">
+                  <p className="font-bold text-3xl text-black dark:text-white">{selectedEnergy.ordinalRaw}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Ordinal</p>
+                </div>
+                <span className="text-gray-600 text-xl mb-2">·</span>
+                <div className="text-center">
+                  <p className="font-bold text-3xl text-black dark:text-white">{selectedEnergy.flatSum}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Compound</p>
+                </div>
+                <span className="text-gray-600 text-xl mb-2">·</span>
+                <div className="text-center">
+                  <p className="font-bold text-3xl text-black dark:text-white">{selectedEnergy.fullSumEnergy}</p>
+                  <p className="text-[10px] text-gray-500 mt-0.5">Reduced</p>
+                </div>
               </div>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{selectedEnergy.cypherReductionLine}</p>
-              {numberMeaning[selectedEnergy.fullSumEnergy] && (
-                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-2 leading-relaxed">{numberMeaning[selectedEnergy.fullSumEnergy]}</p>
-              )}
+              <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">{selectedEnergy.ordinalCalculation}</p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{selectedEnergy.cypherReductionLine}</p>
+              <div className="space-y-1 mt-2">
+                {numberMeaning[selectedEnergy.ordinalEnergy] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Ordinal:</span> {renderMeaning(numberMeaning[selectedEnergy.ordinalEnergy])}</p>
+                )}
+                {numberMeaning[selectedEnergy.fullSumEnergy] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Compound:</span> {renderMeaning(numberMeaning[selectedEnergy.fullSumEnergy])}</p>
+                )}
+                {numberMeaning[selectedEnergy.fullSumEnergy] && (
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Reduced:</span> {renderMeaning(numberMeaning[selectedEnergy.fullSumEnergy])}</p>
+                )}
+              </div>
             </div>
             {/* Secondary Energy */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
               <p className="text-xs text-gray-500 dark:text-gray-400 mb-1 font-medium">Secondary Energies (Day, Month, Year)</p>
-              <p className="font-bold text-xl text-black dark:text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
+              <p className="font-bold text-xl text-black dark:text-white">
                 {selectedEnergy.dayCompound} • {selectedEnergy.monthCompound} • {selectedEnergy.yearCompound}
               </p>
               <div className="space-y-1 mt-1">
                 {numberMeaning[selectedEnergy.dayReduced] && (
-                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Day:</span> {numberMeaning[selectedEnergy.dayReduced]}</p>
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Day:</span> {renderMeaning(numberMeaning[selectedEnergy.dayReduced])}</p>
                 )}
                 {numberMeaning[selectedEnergy.monthReduced] && (
-                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Month:</span> {numberMeaning[selectedEnergy.monthReduced]}</p>
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Month:</span> {renderMeaning(numberMeaning[selectedEnergy.monthReduced])}</p>
                 )}
                 {numberMeaning[selectedEnergy.yearReduced] && (
-                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium">Year:</span> {numberMeaning[selectedEnergy.yearReduced]}</p>
+                  <p className="text-xs italic text-gray-500 dark:text-gray-400 leading-relaxed"><span className="not-italic font-medium text-white">Year:</span> {renderMeaning(numberMeaning[selectedEnergy.yearReduced])}</p>
                 )}
               </div>
-            </div>
-            {/* Ordinal Calculation */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-3">
-              <p className="text-xs text-gray-400 dark:text-gray-500 mb-1 font-medium">Ordinal Calculation (No Simplified Numbers)</p>
-              <p className="font-bold text-xl text-white drop-shadow-[0_0_8px_rgba(255,255,255,0.3)]">
-                {selectedEnergy.ordinalEnergy}
-              </p>
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{selectedEnergy.ordinalCalculation}</p>
-              {numberMeaning[selectedEnergy.ordinalEnergy] && (
-                <p className="text-xs italic text-gray-500 dark:text-gray-400 mt-1 leading-relaxed">{numberMeaning[selectedEnergy.ordinalEnergy]}</p>
-              )}
             </div>
           </div>
 
