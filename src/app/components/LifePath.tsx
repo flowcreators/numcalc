@@ -374,7 +374,13 @@ const buildLifePathValue = (month: number, day: number, year: number): LifePathV
   const reducedDigits = [...digitsOf(month, 2), ...digitsOf(day, 2), ...digitsOf(year, 4)];
   const reducedTotal = reducedDigits.reduce((sum, digit) => sum + digit, 0);
   const ordinal = month + day + digitSum(year);
-  const final = reduceToCoreDigit(reducedTotal);
+
+  // Use component-wise reduction for the primary Life Path result
+  const monthR = reduceToSingleDigit(month);
+  const dayR = MASTER.has(day) ? day : reduceToSingleDigit(digitSum(day));
+  const yearR = reduceToSingleDigit(digitSum(year));
+  const final = reduceToSingleDigit(monthR + dayR + yearR);
+
   const display = ordinal === reducedTotal ? `${reducedTotal}/${final}` : `${ordinal}/${reducedTotal}/${final}`;
   const breakdown =
     ordinal === reducedTotal
